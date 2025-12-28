@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<title>Golf ROI – Treningslogg</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#f4f6f8;
+  padding:16px;
+  max-width:900px;
+  margin:auto;
+}
+h1 { margin-bottom:10px; }
+.card {
+  background:white;
+  padding:14px;
+  margin-bottom:12px;
+  border-radius:8px;
+}
+label {
+  font-size:13px;
+  color:#555;
+  display:block;
+  margin-top:10px;
+}
+input, textarea {
+  width:100%;
+  padding:8px;
+  margin-top:4px;
+  font-family: Arial, sans-serif;
+}
+textarea { min-height:70px; }
+button {
+  padding:8px 14px;
+  margin-top:12px;
+  cursor:pointer;
+}
+.accordion-header {
+  font-weight:bold;
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+}
+.accordion-content {
+  display:none;
+  margin-top:10px;
+}
+.small { font-size:13px; color:#555; }
+</style>
+</head>
+
+<body>
+
+<h1>📝 Treningslogg</h1>
+
+<div class="card">
+  <label>Overskrift / periode</label>
+  <input id="title" placeholder="Baseline / Veke 1 / Veke 4 – presisjon">
+
+  <label>Dato</label>
+  <input id="date" type="date">
+
+  <label>Køller / wedges brukt</label>
+  <input id="clubs" placeholder="PW, 50°, 56°">
+
+  <label>Kva fungerte bra?</label>
+  <textarea id="worked"></textarea>
+
+  <label>Kva var utfordrande?</label>
+  <textarea id="challenge"></textarea>
+
+  <label>Fokus til neste økt</label>
+  <textarea id="focus"></textarea>
+
+  <button onclick="saveLog()">💾 Lagre logg</button>
+  <p class="small">Tips: bruk overskrifta <strong>Baseline</strong> for første refleksjon.</p>
+</div>
+
+<div id="logs"></div>
+
+<script>
+const LOG_KEY = "roi_treningslogg";
+
+function loadLogs(){
+  return JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+}
+
+function saveLogs(logs){
+  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+}
+
+function saveLog(){
+  const log = {
+    title: document.getElementById("title").value.trim(),
+    date: document.getElementById("date").value,
+    clubs: document.getElementById("clubs").value,
+    worked: document.getElementById("worked").value,
+    challenge: document.getElementById("challenge").value,
+    focus: document.getElementById("focus").value
+  };
+
+  if(!log.title){
+    alert("Gi loggen ei overskrift.");
+    return;
+  }
+
+  const logs = loadLogs();
+
+  // Baseline skal alltid ligge øvst
+  if(log.title.toLowerCase() === "baseline"){
+    logs.unshift(log);
+  } else {
+    logs.push(log);
+  }
+
+  saveLogs(logs);
+  clearForm();
+  renderLogs();
+}
+
+function clearForm(){
+  ["title","date","clubs","worked","challenge","focus"]
+    .forEach(id => document.getElementById(id).value = "");
+}
+
+function toggle(id){
+  const el = document.getElementById(id);
+  const open = el.style.display === "block";
+  el.style.display = open ? "none" : "block";
+}
+
+function renderLogs(){
+  const container = document.getElementById("logs");
+  container.innerHTML = "";
+
+  const logs = loadLogs();
+
+  if(!logs.length){
+    container.innerHTML = `<p class="small">Ingen loggar lagra enno.</p>`;
+    return;
+  }
+
+  logs.forEach((l,i)=>{
+    container.innerHTML += `
+      <div class="card">
+        <div class="accordion-header" onclick="toggle('log-${i}')">
+          ${l.title} <span>▶</span>
+        </div>
+        <div class="accordion-content" id="log-${i}">
+          <p class="small"><strong>Dato:</strong> ${l.date || "-"}</p>
+          <p class="small"><strong>Køller:</strong> ${l.clubs || "-"}</p>
+          <p><strong>Fungerte bra:</strong><br>${l.worked || "-"}</p>
+          <p><strong>Utfordringar:</strong><br>${l.challenge || "-"}</p>
+          <p><strong>Fokus:</strong><br>${l.focus || "-"}</p>
+        </div>
+      </div>
+    `;
+  });
+}
+
+renderLogs();
+</script>
+
+</body>
+</html>
