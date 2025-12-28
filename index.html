@@ -98,9 +98,7 @@ hr { margin:16px 0; }
 <div class="card">
   <h3>📊 Bag-oppsummering</h3>
   <p id="bagHcp"></p>
-  <p class="small">
-    Bag-hcp er ein modellbasert indikator – ikkje offisielt handicap.
-  </p>
+  <p class="small">Bag-hcp er ein modellbasert indikator.</p>
 </div>
 
 <script>
@@ -204,7 +202,7 @@ function saveBaseline(){
   baselineStates=JSON.parse(JSON.stringify(clubStates));
   localStorage.setItem(BASELINE_KEY,JSON.stringify(baselineStates));
   updateBaselineInfo();
-  for(const c in CLUB_MODEL) showDiff(c);
+  evaluateBlockFocus();
 }
 
 function toggleBaseline(){
@@ -255,15 +253,23 @@ function showDiff(c){
 }
 
 /* ===============================
-   BLOK-FOKUS (FORBEDRA LOGIKK)
+   BLOK-FOKUS (BASELINE-AWARE)
 =============================== */
 
 function evaluateBlockFocus(){
+  const block = document.getElementById("blockSelect").value;
+
   let p=0,l=0,s=0;
 
+  const source =
+    baselineStates && Object.keys(baselineStates).length
+      ? baselineStates
+      : clubStates;
+
   for(const c in CLUB_MODEL){
-    const v=clubStates[c], pg=PGA[CLUB_MODEL[c].type];
+    const v=source[c];
     if(!v) continue;
+    const pg=PGA[CLUB_MODEL[c].type];
     if(v.side!=null && v.side>pg.side) p++;
     if(v.cons!=null && v.cons>pg.cons) l++;
     if(v.smash!=null && v.smash<pg.smash) s++;
@@ -275,22 +281,22 @@ function evaluateBlockFocus(){
     s > 0           ? "Treff" :
                       "Vedlikehald";
 
-  const block=document.getElementById("blockSelect").value;
-  document.getElementById("blockFocusText").innerText = blockTexts[block][focus];
+  document.getElementById("blockFocusText").innerText =
+    blockTexts[block][focus];
 }
 
 const blockTexts={
  "1":{
-  "Presisjon":"Baseline-data viser at presisjon er den største flaskehalsen. Prioriter stabil startretning, faste mål og roleg tempo i denne bolken.",
-  "Lengdekontroll":"Lengdevariasjon er største utfordring. Tren lengdekontroll systematisk i roleg tempo.",
-  "Treff":"Treffkvalitet bør prioriterast før tempo og variasjon.",
-  "Vedlikehald":"Data er relativt balanserte. Hald ved like ferdigheitene i denne bolken."
+  "Presisjon":"Baseline-data viser at presisjon er største flaskehals. Prioriter stabil startretning og faste mål i bolk 1.",
+  "Lengdekontroll":"Baseline-data viser for stor lengdevariasjon. Tren lengdekontroll systematisk i bolk 1.",
+  "Treff":"Baseline-data viser ustabil treffkvalitet. Prioriter reine treff før tempo.",
+  "Vedlikehald":"Baseline-data er balanserte. Hald ved like ferdigheitene i bolk 1."
  },
  "2":{
   "Presisjon":"Presisjon bør no testast etter tempo og lengdeøvingar.",
   "Lengdekontroll":"Lengdekontroll bør trenast under større belastning.",
-  "Treff":"Stabil utføring bør testast med varierande tempo.",
-  "Vedlikehald":"Vidarefør strukturert trening i denne bolken."
+  "Treff":"Stabil utføring bør testast i varierande tempo.",
+  "Vedlikehald":"Vidarefør strukturert trening i bolk 2."
  },
  "3":{
   "Presisjon":"Presisjon bør trenast i konkurranseliknande situasjonar.",
