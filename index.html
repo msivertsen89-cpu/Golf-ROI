@@ -88,7 +88,7 @@ hr { margin:16px 0; }
 <!-- BOLK-FOKUS -->
 <div class="card">
   <h3>🎯 Fokus for neste bolk</h3>
-  <p id="blockFocusText" class="small">Legg inn data for å få tilbakemelding.</p>
+  <p id="blockFocusText" class="small"></p>
 </div>
 
 <!-- KØLLER -->
@@ -99,7 +99,7 @@ hr { margin:16px 0; }
   <h3>📊 Bag-oppsummering</h3>
   <p id="bagHcp"></p>
   <p class="small">
-    Bag-hcp er ein modellbasert indikator. Presisjonen aukar når fleire køller er registrert.
+    Bag-hcp er ein modellbasert indikator – ikkje offisielt handicap.
   </p>
 </div>
 
@@ -255,21 +255,42 @@ function showDiff(c){
 }
 
 /* ===============================
-   BLOK-FOKUS
+   BLOK-FOKUS (FORBEDRA LOGIKK)
 =============================== */
+
+function evaluateBlockFocus(){
+  let p=0,l=0,s=0;
+
+  for(const c in CLUB_MODEL){
+    const v=clubStates[c], pg=PGA[CLUB_MODEL[c].type];
+    if(!v) continue;
+    if(v.side!=null && v.side>pg.side) p++;
+    if(v.cons!=null && v.cons>pg.cons) l++;
+    if(v.smash!=null && v.smash<pg.smash) s++;
+  }
+
+  let focus =
+    p > l && p > s ? "Presisjon" :
+    l > p && l > s ? "Lengdekontroll" :
+    s > 0           ? "Treff" :
+                      "Vedlikehald";
+
+  const block=document.getElementById("blockSelect").value;
+  document.getElementById("blockFocusText").innerText = blockTexts[block][focus];
+}
 
 const blockTexts={
  "1":{
-  "Presisjon":"Data viser for stor side-spredning. Prioriter presisjon og stabil startretning i denne bolken.",
-  "Lengdekontroll":"Lengdevariasjon er hovudutfordring. Tren kontroll i roleg tempo.",
-  "Treff":"Treffkvalitet bør prioriterast før tempo.",
-  "Vedlikehald":"Data er balanserte. Hald ved like ferdigheitene."
+  "Presisjon":"Baseline-data viser at presisjon er den største flaskehalsen. Prioriter stabil startretning, faste mål og roleg tempo i denne bolken.",
+  "Lengdekontroll":"Lengdevariasjon er største utfordring. Tren lengdekontroll systematisk i roleg tempo.",
+  "Treff":"Treffkvalitet bør prioriterast før tempo og variasjon.",
+  "Vedlikehald":"Data er relativt balanserte. Hald ved like ferdigheitene i denne bolken."
  },
  "2":{
-  "Presisjon":"Presisjon bør testast etter tempo og lengdeøvingar.",
+  "Presisjon":"Presisjon bør no testast etter tempo og lengdeøvingar.",
   "Lengdekontroll":"Lengdekontroll bør trenast under større belastning.",
-  "Treff":"Test stabil utføring i varierande tempo.",
-  "Vedlikehald":"Vidarefør strukturert trening."
+  "Treff":"Stabil utføring bør testast med varierande tempo.",
+  "Vedlikehald":"Vidarefør strukturert trening i denne bolken."
  },
  "3":{
   "Presisjon":"Presisjon bør trenast i konkurranseliknande situasjonar.",
@@ -278,20 +299,6 @@ const blockTexts={
   "Vedlikehald":"Avsluttande vedlikehald og automatisering."
  }
 };
-
-function evaluateBlockFocus(){
-  let p=0,l=0,s=0;
-  for(const c in CLUB_MODEL){
-    const v=clubStates[c], pg=PGA[CLUB_MODEL[c].type];
-    if(!v) continue;
-    if(v.side!=null&&v.side>pg.side) p++;
-    if(v.cons!=null&&v.cons>pg.cons) l++;
-    if(v.smash!=null&&v.smash<pg.smash) s++;
-  }
-  let focus=p>=2?"Presisjon":l>=2?"Lengdekontroll":s>=2?"Treff":"Vedlikehald";
-  const block=document.getElementById("blockSelect").value;
-  document.getElementById("blockFocusText").innerText=blockTexts[block][focus];
-}
 
 /* ===============================
    BAG-HCP
