@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
 <meta charset="UTF-8">
-<title>Golf ROI – 12 ukers analyse</title>
+<title>Golf ROI – Analyse & treningsforslag</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -39,88 +39,63 @@ h1 { margin-top:20px; }
   font-size:13px;
   color:#555;
 }
-input[type=number], select {
+input[type=number] {
   width:100%;
   padding:6px;
 }
 .good { color:green; }
 .bad { color:#c62828; }
 .focus { color:#ef6c00; font-weight:bold; }
-.diff-good { color:green; }
-.diff-bad { color:#c62828; }
+.tip {
+  background:#f9fbe7;
+  padding:10px;
+  border-radius:6px;
+  margin-top:8px;
+  font-size:14px;
+}
 button {
   padding:8px 14px;
   cursor:pointer;
 }
 .small { font-size:13px; color:#555; }
-hr { margin:16px 0; }
-.top-row {
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-}
 </style>
 </head>
 
 <body>
 
-<h1>🏌️ Golf ROI – 12 ukers analyse</h1>
+<h1>🏌️ Golf ROI – Analyse & treningsforslag</h1>
 
-<!-- TOPPANEL -->
 <div class="card">
-  <div class="top-row">
-    <button onclick="saveBaseline()">📌 Lagre baseline (uke 0)</button>
-    <button onclick="toggleBaseline()">👁️ Vis / skjul baseline</button>
-    <button onclick="window.open('pdf/ukeprogram.pdf','_blank')">📅 Ukeprogram</button>
-    <button onclick="window.open('pdf/12ukers_program.pdf','_blank')">📈 12-ukers program</button>
-    <button onclick="window.location.href='treningslogg.html'">📝 Treningslogg</button>
-
-    <select id="blockSelect" onchange="evaluateBlockFocus()">
-      <option value="1">Bolk 1 (uke 1–4)</option>
-      <option value="2">Bolk 2 (uke 5–8)</option>
-      <option value="3">Bolk 3 (uke 9–12)</option>
-    </select>
-  </div>
+  <button onclick="saveBaseline()">📌 Lagre baseline</button>
+  <button onclick="toggleBaseline()">👁️ Vis / skjul baseline</button>
+  <button onclick="window.open('pdf/ukeprogram.pdf','_blank')">📅 Ukeprogram</button>
+  <button onclick="window.open('pdf/12ukers_program.pdf','_blank')">📈 12-ukers program</button>
+  <button onclick="window.location.href='treningslogg.html'">📝 Treningslogg</button>
   <p id="baselineInfo" class="small"></p>
 </div>
 
-<!-- BOLK-FOKUS -->
-<div class="card">
-  <h3>🎯 Fokus for neste bolk</h3>
-  <p id="blockFocusText" class="small"></p>
-</div>
-
-<!-- KØLLER -->
 <div id="clubs"></div>
-
-<!-- BAG -->
-<div class="card">
-  <h3>📊 Bag-oppsummering</h3>
-  <p id="bagHcp"></p>
-  <p class="small">Bag-hcp er ein modellbasert indikator.</p>
-</div>
 
 <script>
 /* ===============================
    KONFIG
 =============================== */
 
-const STORAGE_KEY = "roi_current_v2";
-const BASELINE_KEY = "roi_baseline_v2";
+const STORAGE_KEY = "roi_current_v3";
+const BASELINE_KEY = "roi_baseline_v3";
 
 const CLUB_MODEL = {
-  "Driver": { type:"wood", w:1.2 },
-  "5W": { type:"wood", w:1.0 },
-  "5i": { type:"iron", w:1.0 },
-  "6i": { type:"iron", w:1.0 },
-  "7i": { type:"iron", w:1.0 },
-  "8i": { type:"iron", w:1.0 },
-  "9i": { type:"iron", w:1.0 },
-  "PW": { type:"wedge", w:0.9 },
-  "50°": { type:"wedge", w:0.9 },
-  "56°": { type:"wedge", w:0.9 },
-  "60°": { type:"wedge", w:0.9 }
+  "Driver": "wood",
+  "5W": "wood",
+  "5i": "iron",
+  "6i": "iron",
+  "7i": "iron",
+  "8i": "iron",
+  "9i": "iron",
+  "PW": "wedge",
+  "50°": "wedge",
+  "56°": "wedge",
+  "60°": "wedge"
 };
 
 const PGA = {
@@ -128,8 +103,6 @@ const PGA = {
   iron:{ side:9, cons:8, smash:1.32 },
   wedge:{ side:7, cons:6, smash:1.25 }
 };
-
-const DIFF_RULE = { side:"lower", cons:"lower", carry:"higher" };
 
 /* ===============================
    STATE
@@ -150,29 +123,27 @@ for(const club in CLUB_MODEL){
   container.innerHTML += `
     <div class="card">
       <div class="accordion-header" onclick="toggle('${club}')">
-        ${club}<span id="icon-${club}">▶</span>
+        ${club}
+        <span id="icon-${club}">▶</span>
       </div>
+
       <div class="accordion-content" id="content-${club}">
         <div class="grid">
           ${field(club,"carry","Carry (m)")}
           ${field(club,"side","Side dispersion (m)")}
           ${field(club,"cons","Length consistency (m)")}
-          ${field(club,"launch","Launch angle (°)")}
-          ${field(club,"spin","Spin rate (rpm)")}
-          ${field(club,"aoa","Attack angle (°)")}
           ${field(club,"smash","Smash factor",0.01)}
         </div>
+
         <div id="eval-${club}"></div>
-        <div id="diff-${club}"></div>
+        <div id="tip-${club}"></div>
       </div>
-    </div>`;
+    </div>
+  `;
   evaluateClub(club);
-  showDiff(club);
 }
 
-evaluateBag();
 updateBaselineInfo();
-evaluateBlockFocus();
 
 /* ===============================
    FUNKSJONAR
@@ -187,149 +158,91 @@ function toggle(club){
 
 function field(club,key,label,step=1){
   const v=clubStates[club][key]??"";
-  return `<div class="field"><label>${label}</label>
-  <input type="number" step="${step}" value="${v}"
-  oninput="setValue('${club}','${key}',this.value)"></div>`;
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <input type="number" step="${step}" value="${v}"
+        oninput="setValue('${club}','${key}',this.value)">
+    </div>`;
 }
 
 function setValue(c,k,v){
   clubStates[c][k]=v?parseFloat(v):undefined;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(clubStates));
-  evaluateClub(c); showDiff(c); evaluateBag(); evaluateBlockFocus();
+  evaluateClub(c);
 }
 
 function saveBaseline(){
-  baselineStates=JSON.parse(JSON.stringify(clubStates));
-  localStorage.setItem(BASELINE_KEY,JSON.stringify(baselineStates));
+  baselineStates = JSON.parse(JSON.stringify(clubStates));
+  localStorage.setItem(BASELINE_KEY, JSON.stringify(baselineStates));
   updateBaselineInfo();
-  evaluateBlockFocus();
 }
 
 function toggleBaseline(){
   showBaseline=!showBaseline;
-  for(const c in CLUB_MODEL) showDiff(c);
 }
 
 function updateBaselineInfo(){
   document.getElementById("baselineInfo").innerText =
-    baselineStates?"Baseline lagra ✅":"Ingen baseline lagra.";
+    baselineStates ? "Baseline lagra ✅" : "Ingen baseline lagra.";
 }
 
 /* ===============================
-   ANALYSE PER KØLLE
+   ANALYSE + TRENINGSFORSLAG
 =============================== */
 
 function evaluateClub(c){
-  const v=clubStates[c], p=PGA[CLUB_MODEL[c].type];
-  let good=[], bad=[];
-  if(v.side!=null) v.side<=p.side?good.push("God sidepresisjon"):bad.push("For stor side-spredning");
-  if(v.cons!=null) v.cons<=p.cons?good.push("Stabil lengde"):bad.push("Ustabil lengde");
-  if(v.smash!=null) v.smash>=p.smash?good.push("God treffkvalitet"):bad.push("Lav smash");
-  let f=bad.includes("For stor side-spredning")?"Presisjon":
-        bad.includes("Ustabil lengde")?"Lengdekontroll":
-        bad.length?"Treff":"Vedlikehald";
-  document.getElementById(`eval-${c}`).innerHTML=
-   `<p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
+  const v=clubStates[c];
+  const p=PGA[CLUB_MODEL[c]];
+  let good=[], bad=[], focus="", tip="";
+
+  if(v.side!=null){
+    v.side<=p.side ? good.push("God sidepresisjon") : bad.push("For stor side-spredning");
+  }
+  if(v.cons!=null){
+    v.cons<=p.cons ? good.push("Stabil lengde") : bad.push("Ustabil lengde");
+  }
+  if(v.smash!=null){
+    v.smash>=p.smash ? good.push("God treffkvalitet") : bad.push("Lav smash");
+  }
+
+  /* Fokus + treningsforslag */
+  if(bad.includes("For stor side-spredning")){
+    focus="Presisjon";
+    tip=`• Slå mot faste mål<br>
+         • Rolig tempo<br>
+         • Fokus på startretning`;
+  }
+  else if(bad.includes("Ustabil lengde")){
+    focus="Lengdekontroll";
+    tip=`• Slå 3 ulike lengder<br>
+         • Same tempo, ulik svinglengde<br>
+         • Mål avstand – ikkje maks`;
+  }
+  else if(bad.includes("Lav smash")){
+    focus="Treff";
+    tip=`• Treffpunkt-fokus<br>
+         • Halv fart, full balanse<br>
+         • Avbryt ved dårleg treff`;
+  }
+  else{
+    focus="Vedlikehald";
+    tip=`• Behald rutinar<br>
+         • Normal trening<br>
+         • Ikkje overdriv justeringar`;
+  }
+
+  document.getElementById(`eval-${c}`).innerHTML = `
+    <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
-    <p class="focus">🎯 Fokus: ${f}</p>`;
-}
+    <p class="focus">🎯 Fokus: ${focus}</p>
+  `;
 
-/* ===============================
-   BASELINE-DIFF
-=============================== */
-
-function showDiff(c){
-  const d=document.getElementById(`diff-${c}`);
-  if(!baselineStates||!baselineStates[c]||!showBaseline){ d.innerHTML=""; return; }
-  let rows=[];
-  ["side","cons","carry"].forEach(k=>{
-    if(clubStates[c][k]!=null && baselineStates[c][k]!=null){
-      const diff=clubStates[c][k]-baselineStates[c][k];
-      const good=(DIFF_RULE[k]==="lower"&&diff<=0)||(DIFF_RULE[k]==="higher"&&diff>=0);
-      rows.push(`<div class="${good?"diff-good":"diff-bad"}">${k}: ${baselineStates[c][k]} → ${clubStates[c][k]} (${diff>0?"+":""}${diff.toFixed(1)})</div>`);
-    }
-  });
-  d.innerHTML=rows.length?`<hr><strong>Endring sidan baseline:</strong>${rows.join("")}`:"";
-}
-
-/* ===============================
-   BLOK-FOKUS (BASELINE-AWARE)
-=============================== */
-
-function evaluateBlockFocus(){
-  const block = document.getElementById("blockSelect").value;
-
-  let p=0,l=0,s=0;
-
-  const source =
-    baselineStates && Object.keys(baselineStates).length
-      ? baselineStates
-      : clubStates;
-
-  for(const c in CLUB_MODEL){
-    const v=source[c];
-    if(!v) continue;
-    const pg=PGA[CLUB_MODEL[c].type];
-    if(v.side!=null && v.side>pg.side) p++;
-    if(v.cons!=null && v.cons>pg.cons) l++;
-    if(v.smash!=null && v.smash<pg.smash) s++;
-  }
-
-  let focus =
-    p > l && p > s ? "Presisjon" :
-    l > p && l > s ? "Lengdekontroll" :
-    s > 0           ? "Treff" :
-                      "Vedlikehald";
-
-  document.getElementById("blockFocusText").innerText =
-    blockTexts[block][focus];
-}
-
-const blockTexts={
- "1":{
-  "Presisjon":"Baseline-data viser at presisjon er største flaskehals. Prioriter stabil startretning og faste mål i bolk 1.",
-  "Lengdekontroll":"Baseline-data viser for stor lengdevariasjon. Tren lengdekontroll systematisk i bolk 1.",
-  "Treff":"Baseline-data viser ustabil treffkvalitet. Prioriter reine treff før tempo.",
-  "Vedlikehald":"Baseline-data er balanserte. Hald ved like ferdigheitene i bolk 1."
- },
- "2":{
-  "Presisjon":"Presisjon bør no testast etter tempo og lengdeøvingar.",
-  "Lengdekontroll":"Lengdekontroll bør trenast under større belastning.",
-  "Treff":"Stabil utføring bør testast i varierande tempo.",
-  "Vedlikehald":"Vidarefør strukturert trening i bolk 2."
- },
- "3":{
-  "Presisjon":"Presisjon bør trenast i konkurranseliknande situasjonar.",
-  "Lengdekontroll":"Lengdekontroll bør automatiserast under press.",
-  "Treff":"Fokus på robustheit – eitt slag, eitt mål.",
-  "Vedlikehald":"Avsluttande vedlikehald og automatisering."
- }
-};
-
-/* ===============================
-   BAG-HCP
-=============================== */
-
-function estimateHcp(c){
-  const v=clubStates[c], pg=PGA[CLUB_MODEL[c].type];
-  let s=0;
-  if(v.side!=null&&v.side>pg.side) s++;
-  if(v.cons!=null&&v.cons>pg.cons) s++;
-  return 8+s*3;
-}
-
-function evaluateBag(){
-  let sum=0,w=0,max=0;
-  for(const c in CLUB_MODEL){
-    if(Object.keys(clubStates[c]).length){
-      const h=estimateHcp(c);
-      sum+=h*CLUB_MODEL[c].w; w+=CLUB_MODEL[c].w;
-      if(h>max) max=h;
-    }
-  }
-  if(!w){ document.getElementById("bagHcp").innerText="Legg inn data."; return; }
-  const avg=sum/w, bag=avg+0.5*(max-avg);
-  document.getElementById("bagHcp").innerHTML=`<strong>Estimert bag-hcp:</strong> ${bag.toFixed(1)}`;
+  document.getElementById(`tip-${c}`).innerHTML = `
+    <div class="tip">
+      <strong>🛠 Treningsforslag:</strong><br>${tip}
+    </div>
+  `;
 }
 </script>
 
