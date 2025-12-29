@@ -47,7 +47,7 @@ input[type=number] {
 .bad { color:#c62828; }
 .focus { color:#ef6c00; font-weight:bold; }
 .tip {
-  background:#f9fbe7;
+  background:#f1f8e9;
   padding:10px;
   border-radius:6px;
   margin-top:8px;
@@ -67,7 +67,6 @@ button {
 
 <div class="card">
   <button onclick="saveBaseline()">📌 Lagre baseline</button>
-  <button onclick="toggleBaseline()">👁️ Vis / skjul baseline</button>
   <button onclick="window.open('pdf/ukeprogram.pdf','_blank')">📅 Ukeprogram</button>
   <button onclick="window.open('pdf/12ukers_program.pdf','_blank')">📈 12-ukers program</button>
   <button onclick="window.location.href='treningslogg.html'">📝 Treningslogg</button>
@@ -78,24 +77,24 @@ button {
 
 <script>
 /* ===============================
-   KONFIG
+   KONFIG – FROSE (v1.0)
 =============================== */
 
-const STORAGE_KEY = "roi_current_v3";
-const BASELINE_KEY = "roi_baseline_v3";
+const STORAGE_KEY = "roi_current_v1";
+const BASELINE_KEY = "roi_baseline_v1";
 
 const CLUB_MODEL = {
-  "Driver": "wood",
-  "5W": "wood",
-  "5i": "iron",
-  "6i": "iron",
-  "7i": "iron",
-  "8i": "iron",
-  "9i": "iron",
-  "PW": "wedge",
-  "50°": "wedge",
-  "56°": "wedge",
-  "60°": "wedge"
+  "Driver":"wood",
+  "5W":"wood",
+  "5i":"iron",
+  "6i":"iron",
+  "7i":"iron",
+  "8i":"iron",
+  "9i":"iron",
+  "PW":"wedge",
+  "50°":"wedge",
+  "56°":"wedge",
+  "60°":"wedge"
 };
 
 const PGA = {
@@ -110,7 +109,6 @@ const PGA = {
 
 let clubStates = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 let baselineStates = JSON.parse(localStorage.getItem(BASELINE_KEY)) || null;
-let showBaseline = true;
 
 /* ===============================
    INIT UI
@@ -146,6 +144,15 @@ for(const club in CLUB_MODEL){
 updateBaselineInfo();
 
 /* ===============================
+   HJELPARAR
+=============================== */
+
+function hasData(v){
+  return v &&
+    (v.side!=null || v.cons!=null || v.smash!=null || v.carry!=null);
+}
+
+/* ===============================
    FUNKSJONAR
 =============================== */
 
@@ -178,10 +185,6 @@ function saveBaseline(){
   updateBaselineInfo();
 }
 
-function toggleBaseline(){
-  showBaseline=!showBaseline;
-}
-
 function updateBaselineInfo(){
   document.getElementById("baselineInfo").innerText =
     baselineStates ? "Baseline lagra ✅" : "Ingen baseline lagra.";
@@ -192,8 +195,16 @@ function updateBaselineInfo(){
 =============================== */
 
 function evaluateClub(c){
-  const v=clubStates[c];
-  const p=PGA[CLUB_MODEL[c]];
+  const v = clubStates[c];
+
+  if(!hasData(v)){
+    document.getElementById(`eval-${c}`).innerHTML =
+      `<p class="small">Legg inn data for å få analyse.</p>`;
+    document.getElementById(`tip-${c}`).innerHTML = "";
+    return;
+  }
+
+  const p = PGA[CLUB_MODEL[c]];
   let good=[], bad=[], focus="", tip="";
 
   if(v.side!=null){
@@ -206,7 +217,6 @@ function evaluateClub(c){
     v.smash>=p.smash ? good.push("God treffkvalitet") : bad.push("Lav smash");
   }
 
-  /* Fokus + treningsforslag */
   if(bad.includes("For stor side-spredning")){
     focus="Presisjon";
     tip=`• Slå mot faste mål<br>
@@ -223,7 +233,7 @@ function evaluateClub(c){
     focus="Treff";
     tip=`• Treffpunkt-fokus<br>
          • Halv fart, full balanse<br>
-         • Avbryt ved dårleg treff`;
+         • Stopp ved dårleg treff`;
   }
   else{
     focus="Vedlikehald";
@@ -233,7 +243,7 @@ function evaluateClub(c){
   }
 
   document.getElementById(`eval-${c}`).innerHTML = `
-    <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
+    <p class="good"><strong>Bra:</strong> ${good.join(", ")}</p>
     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
     <p class="focus">🎯 Fokus: ${focus}</p>
   `;
