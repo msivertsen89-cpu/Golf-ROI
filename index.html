@@ -67,7 +67,6 @@ button {
 }
 .small { font-size:13px; color:#555; }
 
-/* Modal */
 .overlay {
   position:fixed;
   inset:0;
@@ -81,57 +80,44 @@ button {
   background:white;
   padding:20px;
   border-radius:8px;
-  max-width:420px;
+  max-width:500px;
   width:100%;
+  max-height:90vh;
+  overflow:auto;
+}
+.modal h2 { margin-top:0; }
+.club-list label {
+  display:block;
+  margin-bottom:6px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- ONBOARDING -->
-<div id="onboarding" class="overlay" style="display:none;">
+<!-- MODAL: VEL KØLLER -->
+<div id="clubSelectModal" class="overlay" style="display:none;">
   <div class="modal">
-    <h2 id="onboardTitle"></h2>
-    <p id="onboardText"></p>
-    <button onclick="nextOnboard()">Neste</button>
+    <h2>🏌️ Kva køller har du i bagen?</h2>
+    <p class="small">Vel dei køllene du faktisk brukar. Du kan endre dette seinare.</p>
+    <div class="club-list" id="clubCheckboxes"></div>
+    <button onclick="saveActiveClubs()">Lagre og start</button>
   </div>
 </div>
 
-<!-- PROFIL -->
-<div id="profileModal" class="overlay" style="display:none;">
+<!-- MODAL: ADMINISTRER KØLLER -->
+<div id="manageClubsModal" class="overlay" style="display:none;">
   <div class="modal">
-    <h2>Profil</h2>
-
-    <label>Handicap</label>
-    <select id="hcpInput">
-      <option value="">Vel</option>
-      <option>0–9</option>
-      <option>10–19</option>
-      <option>20–29</option>
-      <option>30–54</option>
-    </select>
-
-    <br><br>
-
-    <label>Kva ønskjer du å prioritere i treninga?</label>
-    <select id="goalInput">
-      <option value="">Vel</option>
-      <option>Presisjon</option>
-      <option>Lengde</option>
-      <option>Stabilitet</option>
-    </select>
-    <p class="small">Brukast når fleire område er like svake.</p>
-
-    <button onclick="saveProfile()">Lagre</button>
+    <h2>⚙️ Administrer køller</h2>
+    <div class="club-list" id="manageClubCheckboxes"></div>
+    <button onclick="saveActiveClubs(true)">Lagre</button>
   </div>
 </div>
 
 <h1>🏌️ Golf ROI – Treningsanalyse</h1>
 
 <div class="card">
-  <button onclick="startOnboarding()">ℹ️ Kom i gang</button>
-  <button onclick="openProfile()">⚙️ Profil</button>
+  <button onclick="openManageClubs()">⚙️ Administrer køller</button>
 </div>
 
 <div id="clubs"></div>
@@ -141,18 +127,37 @@ button {
    KONFIG
 =============================== */
 
-const STORAGE_KEY = "roi_state_v1_3_2";
-const PROFILE_KEY = "roi_profile_v1_3_2";
-const ONBOARD_KEY = "roi_onboarded_v1";
+const STORAGE_KEY = "roi_state_v1_4";
+const ACTIVE_KEY = "roi_active_clubs_v1_4";
 
-const CLUB_MODEL = {
-  "Driver":"wood","5W":"wood",
-  "5i":"iron","6i":"iron","7i":"iron","8i":"iron","9i":"iron",
-  "PW":"wedge","50°":"wedge","56°":"wedge","60°":"wedge"
-};
+const CLUBS = [
+  {id:"Driver", type:"wood"},
+  {id:"3W", type:"wood"},
+  {id:"5W", type:"wood"},
+  {id:"7W", type:"wood"},
+
+  {id:"2H", type:"hybrid"},
+  {id:"3H", type:"hybrid"},
+  {id:"4H", type:"hybrid"},
+  {id:"5H", type:"hybrid"},
+
+  {id:"3i", type:"iron"},
+  {id:"4i", type:"iron"},
+  {id:"5i", type:"iron"},
+  {id:"6i", type:"iron"},
+  {id:"7i", type:"iron"},
+  {id:"8i", type:"iron"},
+  {id:"9i", type:"iron"},
+
+  {id:"PW", type:"wedge"},
+  {id:"50°", type:"wedge"},
+  {id:"54–56°", type:"wedge"},
+  {id:"58–60°", type:"wedge"}
+];
 
 const PGA = {
   wood:{ side:12, cons:12, smash:1.45 },
+  hybrid:{ side:10, cons:10, smash:1.38 },
   iron:{ side:9, cons:8, smash:1.32 },
   wedge:{ side:7, cons:6, smash:1.25 }
 };
@@ -162,168 +167,155 @@ const PGA = {
 =============================== */
 
 let clubStates = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-let profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
+let activeClubs = JSON.parse(localStorage.getItem(ACTIVE_KEY)) || null;
 
 /* ===============================
-   ONBOARDING
+   INIT
 =============================== */
 
-const onboardSteps = [
-  {title:"Dette er ein trenar", text:"Appen gir deg konkrete treningsråd per kølle – ikkje berre tal."},
-  {title:"Dette treng du", text:"Legg inn grove snitt og estimat frå range eller simulator. Start med 2–3 køller – det er meir enn godt nok."},
-  {title:"Dette får du", text:"Du får fokus og øvingar som faktisk gjer treninga meir målretta."}
-];
-let onboardIndex = 0;
-
-if(!localStorage.getItem(ONBOARD_KEY)) startOnboarding();
-
-function startOnboarding(){
-  onboardIndex = 0;
-  document.getElementById("onboarding").style.display="flex";
-  renderOnboard();
-}
-function nextOnboard(){
-  onboardIndex++;
-  if(onboardIndex>=onboardSteps.length){
-    document.getElementById("onboarding").style.display="none";
-    localStorage.setItem(ONBOARD_KEY,"true");
-    return;
-  }
-  renderOnboard();
-}
-function renderOnboard(){
-  document.getElementById("onboardTitle").innerText = onboardSteps[onboardIndex].title;
-  document.getElementById("onboardText").innerText = onboardSteps[onboardIndex].text;
+if(!activeClubs){
+  openClubSelect(true);
+} else {
+  render();
 }
 
 /* ===============================
-   PROFIL
+   CLUB SELECTION
 =============================== */
 
-function openProfile(){
-  document.getElementById("hcpInput").value = profile.hcp || "";
-  document.getElementById("goalInput").value = profile.goal || "";
-  document.getElementById("profileModal").style.display="flex";
+function openClubSelect(first=false){
+  document.getElementById(first?"clubSelectModal":"manageClubsModal").style.display="flex";
+  const container = document.getElementById(first?"clubCheckboxes":"manageClubCheckboxes");
+  container.innerHTML = "";
+
+  CLUBS.forEach(c=>{
+    const checked = activeClubs ? activeClubs.includes(c.id) : false;
+    container.innerHTML += `
+      <label>
+        <input type="checkbox" value="${c.id}" ${checked?"checked":""}>
+        ${c.id}
+      </label>
+    `;
+  });
 }
-function saveProfile(){
-  profile.hcp = document.getElementById("hcpInput").value;
-  profile.goal = document.getElementById("goalInput").value;
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  document.getElementById("profileModal").style.display="none";
+
+function saveActiveClubs(isManage=false){
+  const modalId = isManage?"manageClubsModal":"clubSelectModal";
+  const inputs = document.querySelectorAll(`#${modalId} input[type=checkbox]:checked`);
+  activeClubs = Array.from(inputs).map(i=>i.value);
+
+  localStorage.setItem(ACTIVE_KEY, JSON.stringify(activeClubs));
+  document.getElementById(modalId).style.display="none";
+  render();
+}
+
+function openManageClubs(){
+  openClubSelect(false);
 }
 
 /* ===============================
-   INIT KØLLER
+   RENDER
 =============================== */
 
-const container = document.getElementById("clubs");
+function render(){
+  const container = document.getElementById("clubs");
+  container.innerHTML = "";
 
-for(const c in CLUB_MODEL){
-  clubStates[c] ||= { baseline:null, previous:null, current:{} };
+  activeClubs.forEach(id=>{
+    const meta = CLUBS.find(c=>c.id===id);
+    if(!clubStates[id]) clubStates[id] = { baseline:null, previous:null, current:{} };
 
-  container.innerHTML += `
-    <div class="card">
-      <div class="accordion-header" onclick="toggle('${c}')">
-        ${c}<span id="icon-${c}">▶</span>
-      </div>
-
-      <div class="accordion-content" id="content-${c}">
-        <div class="grid">
-          ${field(c,"side","Side-consistency (m)","Kor stort side-til-side utslag du har. Basert på ca. 10–20 slag.")}
-          ${field(c,"cons","Length consistency (m)","Kor jamn lengda på slaga er.")}
-          ${field(c,"smash","Smash factor","Kor reint du treff ballen.",0.01)}
+    container.innerHTML += `
+      <div class="card">
+        <div class="accordion-header" onclick="toggle('${id}')">
+          ${id}<span id="icon-${id}">▶</span>
         </div>
 
-        <div id="buttons-${c}"></div>
-        <div id="eval-${c}"></div>
-        <div class="small">ℹ️ Referansar basert på gode amatørar og tour-data.</div>
-        <div id="tip-${c}"></div>
+        <div class="accordion-content" id="content-${id}">
+          <div class="grid">
+            ${field(id,"side","Side-consistency (m)","Side-til-side utslag, ca. 10–20 slag")}
+            ${field(id,"cons","Length consistency (m)","Kor jamn lengda er")}
+            ${field(id,"smash","Smash factor","Kor reint du treff",0.01)}
+          </div>
+
+          <div id="buttons-${id}"></div>
+          <div id="eval-${id}"></div>
+          <div id="tip-${id}"></div>
+        </div>
       </div>
-    </div>
-  `;
-  updateButtons(c);
-  evaluateClub(c);
-}
+    `;
 
-persist();
+    updateButtons(id);
+    evaluateClub(id, meta.type);
+  });
 
-/* ===============================
-   HJELPARAR
-=============================== */
-
-function persist(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
 }
-function hasData(v){
-  return v && (v.side!=null || v.cons!=null || v.smash!=null);
-}
-function compareMetric(c,p,low=true){
-  if(c==null||p==null) return "";
-  if(low) return c<p?"↑":c>p?"↓":"→";
-  return c>p?"↑":c<p?"↓":"→";
-}
 
 /* ===============================
-   UI / INPUT
+   UI HELPERS
 =============================== */
 
-function toggle(c){
-  const el=document.getElementById("content-"+c);
-  const ic=document.getElementById("icon-"+c);
+function toggle(id){
+  const el=document.getElementById("content-"+id);
+  const ic=document.getElementById("icon-"+id);
   el.style.display = el.style.display==="block"?"none":"block";
   ic.textContent = el.style.display==="block"?"▼":"▶";
 }
-function field(c,k,l,h,s=1){
-  const v=clubStates[c].current[k]??"";
-  return `<div class="field">
-    <label>${l}</label>
-    <div class="hint">${h}</div>
-    <input type="number" step="${s}" value="${v}"
-      oninput="setValue('${c}','${k}',this.value)">
-  </div>`;
+
+function field(id,key,label,hint,step=1){
+  const v=clubStates[id].current[key] ?? "";
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <div class="hint">${hint}</div>
+      <input type="number" step="${step}" value="${v}"
+        oninput="setValue('${id}','${key}',this.value)">
+    </div>`;
 }
-function setValue(c,k,v){
-  clubStates[c].current[k]=v?parseFloat(v):undefined;
-  persist();
-  evaluateClub(c);
+
+function setValue(id,key,val){
+  clubStates[id].current[key]=val?parseFloat(val):undefined;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
+  evaluateClub(id, CLUBS.find(c=>c.id===id).type);
 }
 
 /* ===============================
    BASELINE / ØKT
 =============================== */
 
-function setBaseline(c){
-  if(!hasData(clubStates[c].current)) return;
-  clubStates[c].baseline = {...clubStates[c].current};
-  persist();
-  updateButtons(c);
-  evaluateClub(c);
-}
-function clearBaseline(c){
-  if(!confirm("Slette baseline for "+c+"?")) return;
-  clubStates[c].baseline=null;
-  persist();
-  updateButtons(c);
-  evaluateClub(c);
-}
-function saveSession(c){
-  if(!hasData(clubStates[c].current)) return;
-  clubStates[c].previous = {...clubStates[c].current};
-  persist();
-  evaluateClub(c);
-}
-function updateButtons(c){
-  const el=document.getElementById("buttons-"+c);
-  if(!clubStates[c].baseline){
+function updateButtons(id){
+  const el=document.getElementById("buttons-"+id);
+  if(!clubStates[id].baseline){
     el.innerHTML = `
-      <button onclick="setBaseline('${c}')">📌 Sett baseline</button>
-      <div class="small">Når dette representerer normal prestasjon.</div>
-    `;
+      <button onclick="setBaseline('${id}')">📌 Sett baseline</button>
+      <div class="small">Når dette representerer normal prestasjon.</div>`;
   } else {
     el.innerHTML = `
       <span class="small">Baseline lagra</span><br>
-      <button onclick="saveSession('${c}')">💾 Lagre økt</button>
-      <button onclick="clearBaseline('${c}')">✏️ Rediger baseline</button>`;
+      <button onclick="saveSession('${id}')">💾 Lagre økt</button>
+      <button onclick="clearBaseline('${id}')">✏️ Rediger baseline</button>`;
+  }
+}
+
+function setBaseline(id){
+  clubStates[id].baseline = {...clubStates[id].current};
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
+  updateButtons(id);
+  evaluateClub(id, CLUBS.find(c=>c.id===id).type);
+}
+
+function saveSession(id){
+  clubStates[id].previous = {...clubStates[id].current};
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
+  evaluateClub(id, CLUBS.find(c=>c.id===id).type);
+}
+
+function clearBaseline(id){
+  if(confirm("Slette baseline for "+id+"?")){
+    clubStates[id].baseline=null;
+    updateButtons(id);
+    evaluateClub(id, CLUBS.find(c=>c.id===id).type);
   }
 }
 
@@ -331,20 +323,18 @@ function updateButtons(c){
    ANALYSE
 =============================== */
 
-function evaluateClub(c){
-  const v=clubStates[c];
+function evaluateClub(id,type){
+  const v=clubStates[id];
   const cur=v.current;
-  const base=v.baseline;
-  const prev=v.previous;
+  const p=PGA[type];
 
-  if(!hasData(cur)){
-    document.getElementById(`eval-${c}`).innerHTML =
+  if(!cur.side && !cur.cons && !cur.smash){
+    document.getElementById(`eval-${id}`).innerHTML =
       `<p class="small">Legg inn data for analyse.</p>`;
-    document.getElementById(`tip-${c}`).innerHTML="";
+    document.getElementById(`tip-${id}`).innerHTML="";
     return;
   }
 
-  const p=PGA[CLUB_MODEL[c]];
   let good=[], bad=[], focus="", tip="";
 
   if(cur.side<=p.side) good.push("God sidekontroll"); else bad.push("For stort side-til-side utslag");
@@ -352,36 +342,21 @@ function evaluateClub(c){
   if(cur.smash>=p.smash) good.push("Reint treff"); else bad.push("Ureint treff");
 
   if(bad.includes("For stort side-til-side utslag")){
-    focus="Presisjon"; tip="Slå mot faste mål og fokuser på kor ballen startar.";
+    focus="Presisjon"; tip="Slå mot faste mål og sjå kvar ballen startar.";
   } else if(bad.includes("Ustabil lengde")){
-    focus="Lengdekontroll"; tip="Slå korte og lange slag med same tempo.";
+    focus="Lengdekontroll"; tip="Variér lengde, same tempo.";
   } else if(bad.includes("Ureint treff")){
     focus="Treff"; tip="Fokuser på å treffe midt i kølleflata.";
   } else {
     focus="Vedlikehald"; tip="Behald gode rutinar.";
   }
 
-  let prog="";
-  if(base){
-    prog += `<p class="progress">Mot baseline:
-      Side ${compareMetric(cur.side,base.side,true)} |
-      Lengde ${compareMetric(cur.cons,base.cons,true)} |
-      Treff ${compareMetric(cur.smash,base.smash,false)}</p>`;
-  }
-  if(prev){
-    prog += `<p class="progress">Sidan sist:
-      Side ${compareMetric(cur.side,prev.side,true)} |
-      Lengde ${compareMetric(cur.cons,prev.cons,true)} |
-      Treff ${compareMetric(cur.smash,prev.smash,false)}</p>`;
-  }
+  document.getElementById(`eval-${id}`).innerHTML = `
+    <p class="good"><strong>Bra:</strong> ${good.join(", ")}</p>
+    <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
+    <p class="focus">🎯 Fokus: ${focus}</p>`;
 
-  document.getElementById(`eval-${c}`).innerHTML=
-    `<p class="good"><strong>Bra:</strong> ${good.join(", ")}</p>
-     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
-     ${prog}
-     <p class="focus">🎯 Fokus: ${focus}</p>`;
-
-  document.getElementById(`tip-${c}`).innerHTML=
+  document.getElementById(`tip-${id}`).innerHTML =
     `<div class="tip"><strong>🛠 Treningsforslag:</strong> ${tip}</div>`;
 }
 </script>
