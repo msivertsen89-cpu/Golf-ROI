@@ -35,14 +35,8 @@ h1 { margin-top:20px; }
   grid-template-columns: repeat(auto-fit,minmax(170px,1fr));
   gap:12px;
 }
-.field label {
-  font-size:13px;
-  color:#333;
-}
-.field .hint {
-  font-size:12px;
-  color:#777;
-}
+.field label { font-size:13px; }
+.field .hint { font-size:12px; color:#777; }
 input[type=number], select {
   width:100%;
   padding:6px;
@@ -62,6 +56,7 @@ button {
   margin:4px 4px 0 0;
 }
 .small { font-size:13px; color:#555; }
+a { color:#1565c0; font-weight:bold; text-decoration:none; }
 
 .overlay {
   position:fixed;
@@ -81,75 +76,15 @@ button {
   max-height:90vh;
   overflow:auto;
 }
-.club-list label {
-  display:block;
-  margin-bottom:6px;
-}
+.club-list label { display:block; margin-bottom:6px; }
 </style>
 </head>
 
 <body>
 
-<!-- ================= ONBOARDING ================= -->
-<div id="onboarding" class="overlay" style="display:none;">
-  <div class="modal">
-    <h2 id="onboardTitle"></h2>
-    <p id="onboardText"></p>
-    <button onclick="nextOnboard()">Neste</button>
-  </div>
-</div>
-
-<!-- ================= PROFIL ================= -->
-<div id="profileModal" class="overlay" style="display:none;">
-  <div class="modal">
-    <h2>Profil</h2>
-
-    <label>Handicap</label>
-    <select id="hcpInput">
-      <option value="">Vel</option>
-      <option>0–9</option>
-      <option>10–19</option>
-      <option>20–29</option>
-      <option>30–54</option>
-    </select>
-
-    <br><br>
-
-    <label>Kva ønskjer du å prioritere i treninga?</label>
-    <select id="goalInput">
-      <option value="">Vel</option>
-      <option>Presisjon</option>
-      <option>Lengde</option>
-      <option>Stabilitet</option>
-    </select>
-
-    <button onclick="saveProfile()">Lagre</button>
-  </div>
-</div>
-
-<!-- ================= VEL KØLLER ================= -->
-<div id="clubSelectModal" class="overlay" style="display:none;">
-  <div class="modal">
-    <h2>🏌️ Kva køller har du i bagen?</h2>
-    <p class="small">Vel dei køllene du faktisk brukar. Du kan endre dette seinare.</p>
-    <div class="club-list" id="clubCheckboxes"></div>
-    <button onclick="saveActiveClubs()">Lagre og start</button>
-  </div>
-</div>
-
-<!-- ================= ADMINISTRER KØLLER ================= -->
-<div id="manageClubsModal" class="overlay" style="display:none;">
-  <div class="modal">
-    <h2>⚙️ Administrer køller</h2>
-    <div class="club-list" id="manageClubCheckboxes"></div>
-    <button onclick="saveActiveClubs(true)">Lagre</button>
-  </div>
-</div>
-
 <h1>🏌️ Golf ROI – Treningsanalyse</h1>
 
 <div class="card">
-  <button onclick="startOnboarding()">ℹ️ Kom i gang</button>
   <button onclick="openProfile()">⚙️ Profil</button>
   <button onclick="openManageClubs()">🏌️ Køller</button>
 </div>
@@ -159,10 +94,9 @@ button {
 <script>
 /* ================= KONFIG ================= */
 
-const STORAGE_KEY = "roi_state_v1_4_4";
-const ACTIVE_KEY  = "roi_active_clubs_v1_4_4";
-const PROFILE_KEY = "roi_profile_v1_4_4";
-const ONBOARD_KEY = "roi_onboarded_v1";
+const STORAGE_KEY = "roi_state_v1_4_6";
+const ACTIVE_KEY  = "roi_active_clubs_v1_4_6";
+const PROFILE_KEY = "roi_profile_v1_4_6";
 
 const CLUBS = [
   "Driver","3W","5W","7W",
@@ -179,15 +113,11 @@ const PGA = {
 };
 
 const SMASH_TARGET = {
-  wood:   1.45,
-  hybrid: 1.38,
-  iron:   1.32,
-  wedge:  1.22
+  wood:1.45, hybrid:1.38, iron:1.32, wedge:1.22
 };
 
 function clubType(id){
-  if(id === "Driver") return "wood";
-  if(["3W","5W","7W"].includes(id)) return "wood";
+  if(id==="Driver"||["3W","5W","7W"].includes(id)) return "wood";
   if(["2H","3H","4H","5H"].includes(id)) return "hybrid";
   if(id.endsWith("i")) return "iron";
   return "wedge";
@@ -196,92 +126,19 @@ function clubType(id){
 /* ================= STATE ================= */
 
 let clubStates = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-let activeClubs = JSON.parse(localStorage.getItem(ACTIVE_KEY)) || null;
+let activeClubs = JSON.parse(localStorage.getItem(ACTIVE_KEY)) || CLUBS;
 let profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
-
-/* ================= ONBOARDING ================= */
-
-const onboardSteps = [
-  {t:"Dette er ein trenar", d:"Appen gir konkrete treningsråd per kølle – ikkje berre tal."},
-  {t:"Dette treng du", d:"Legg inn grove snitt. Start med 2–3 køller – det er meir enn nok."},
-  {t:"Dette får du", d:"Du får fokus og øvingar som gjer treninga meir målretta."}
-];
-let onboardIndex = 0;
-
-if(!localStorage.getItem(ONBOARD_KEY)){
-  startOnboarding();
-} else if(!activeClubs){
-  openClubSelect();
-} else {
-  render();
-}
-
-function startOnboarding(){
-  onboardIndex = 0;
-  document.getElementById("onboarding").style.display="flex";
-  renderOnboard();
-}
-function nextOnboard(){
-  onboardIndex++;
-  if(onboardIndex>=onboardSteps.length){
-    document.getElementById("onboarding").style.display="none";
-    localStorage.setItem(ONBOARD_KEY,"true");
-    if(!activeClubs) openClubSelect();
-    return;
-  }
-  renderOnboard();
-}
-function renderOnboard(){
-  document.getElementById("onboardTitle").innerText = onboardSteps[onboardIndex].t;
-  document.getElementById("onboardText").innerText = onboardSteps[onboardIndex].d;
-}
-
-/* ================= PROFIL ================= */
-
-function openProfile(){
-  document.getElementById("hcpInput").value = profile.hcp || "";
-  document.getElementById("goalInput").value = profile.goal || "";
-  document.getElementById("profileModal").style.display="flex";
-}
-function saveProfile(){
-  profile.hcp = document.getElementById("hcpInput").value;
-  profile.goal = document.getElementById("goalInput").value;
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  document.getElementById("profileModal").style.display="none";
-}
-
-/* ================= KØLLER ================= */
-
-function openClubSelect(manage=false){
-  const modal = manage?"manageClubsModal":"clubSelectModal";
-  const box = manage?"manageClubCheckboxes":"clubCheckboxes";
-  document.getElementById(modal).style.display="flex";
-  const el = document.getElementById(box);
-  el.innerHTML="";
-  CLUBS.forEach(c=>{
-    const checked = activeClubs?.includes(c)?"checked":"";
-    el.innerHTML += `<label><input type="checkbox" value="${c}" ${checked}> ${c}</label>`;
-  });
-}
-
-function saveActiveClubs(manage=false){
-  const modal = manage?"manageClubsModal":"clubSelectModal";
-  const inputs = document.querySelectorAll(`#${modal} input:checked`);
-  activeClubs = [...inputs].map(i=>i.value);
-  localStorage.setItem(ACTIVE_KEY, JSON.stringify(activeClubs));
-  document.getElementById(modal).style.display="none";
-  render();
-}
-
-function openManageClubs(){ openClubSelect(true); }
 
 /* ================= RENDER ================= */
 
+const container = document.getElementById("clubs");
+render();
+
 function render(){
-  const container=document.getElementById("clubs");
   container.innerHTML="";
   activeClubs.forEach(id=>{
     clubStates[id] ||= { baseline:null, previous:null, current:{} };
+
     container.innerHTML+=`
       <div class="card">
         <div class="accordion-header" onclick="toggle('${id}')">
@@ -290,18 +147,20 @@ function render(){
         <div class="accordion-content" id="content-${id}">
           <div class="grid">
             ${input(id,"side","Side-consistency (m)","Side-til-side utslag")}
-            ${input(id,"cons","Length consistency (m)","Kor jamn lengda er")}
-            ${input(id,"smash","Smash factor","Ball speed / club speed",0.01)}
+            ${input(id,"cons","Length consistency (m)","Lengdespredning")}
+            ${input(id,"smash","Smash factor","Treffkvalitet",0.01)}
           </div>
+
+          <div id="save-${id}"></div>
           <div id="eval-${id}"></div>
         </div>
-      </div>`;
+      </div>
+    `;
     evaluate(id);
+    renderSaveButtons(id);
   });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
 }
-
-/* ================= UI HELPERS ================= */
 
 function toggle(id){
   const el=document.getElementById("content-"+id);
@@ -312,7 +171,8 @@ function toggle(id){
 
 function input(id,key,label,hint,step=1){
   const v=clubStates[id].current[key] ?? "";
-  return `<div class="field">
+  return `
+  <div class="field">
     <label>${label}</label>
     <div class="hint">${hint}</div>
     <input type="number" step="${step}" value="${v}"
@@ -320,51 +180,92 @@ function input(id,key,label,hint,step=1){
   </div>`;
 }
 
-/* ================= INPUT (STABIL) ================= */
-
 function updateValue(id,key,value){
-  clubStates[id].current[key] = value ? parseFloat(value) : undefined;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
+  clubStates[id].current[key]=value?parseFloat(value):undefined;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(clubStates));
   evaluate(id);
 }
 
+/* ================= LAGRING ================= */
+
+function renderSaveButtons(id){
+  const el = document.getElementById("save-"+id);
+  const s = clubStates[id];
+
+  if(!s.baseline){
+    el.innerHTML = `
+      <button onclick="setBaseline('${id}')">📌 Lagre baseline</button>
+      <p class="small">
+        Bruk når dette representerer normal prestasjon for denne kølla.
+      </p>
+    `;
+  } else {
+    el.innerHTML = `
+      <p class="small">Baseline lagra ✅</p>
+      <button onclick="saveSession('${id}')">💾 Lagre økt</button>
+      <button onclick="editBaseline('${id}')">✏️ Rediger baseline</button>
+    `;
+  }
+}
+
+function setBaseline(id){
+  clubStates[id].baseline={...clubStates[id].current};
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(clubStates));
+  renderSaveButtons(id);
+}
+
+function saveSession(id){
+  clubStates[id].previous={...clubStates[id].current};
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(clubStates));
+}
+
+function editBaseline(id){
+  if(confirm("Slette baseline for "+id+"?")){
+    clubStates[id].baseline=null;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(clubStates));
+    renderSaveButtons(id);
+  }
+}
+
 /* ================= ANALYSE ================= */
+
+function getDrillLink(focus){
+  if(focus==="Presisjon") return "ovelser/startretning.html";
+  if(focus==="Lengdekontroll") return "ovelser/lengde.html";
+  if(focus==="Treff") return "ovelser/treff.html";
+  return "ovelser/vedlikehold.html";
+}
 
 function evaluate(id){
   const v=clubStates[id].current;
   const type=clubType(id);
   const p=PGA[type];
-  const smashTarget=SMASH_TARGET[type];
+  const smashT=SMASH_TARGET[type];
   const el=document.getElementById("eval-"+id);
 
-  let good=[], bad=[], focus="", tip="";
+  let good=[],bad=[],focus="",tip="";
 
-  if(v.side != null){
-    if(v.side <= p.side) good.push("God sidekontroll");
-    else bad.push("For stort sideutslag");
+  if(v.side!=null){
+    v.side<=p.side?good.push("God sidekontroll"):bad.push("For stort sideutslag");
+  }
+  if(v.cons!=null){
+    v.cons<=p.cons?good.push("Stabil lengde"):bad.push("Ustabil lengde");
+  }
+  if(v.smash!=null){
+    v.smash>=smashT?good.push("Reint treff"):bad.push("Ureint treff");
   }
 
-  if(v.cons != null){
-    if(v.cons <= p.cons) good.push("Stabil lengde");
-    else bad.push("Ustabil lengde");
-  }
-
-  if(v.smash != null){
-    if(v.smash >= smashTarget) good.push("Reint treff");
-    else bad.push("Ureint treff");
-  }
-
-  if(!good.length && !bad.length){
+  if(!good.length&&!bad.length){
     el.innerHTML="<p class='small'>Legg inn data for analyse.</p>";
     return;
   }
 
   if(bad.includes("For stort sideutslag")){
-    focus="Presisjon"; tip="Jobb med startretning og sikte.";
+    focus="Presisjon"; tip="Jobb med startretning.";
   } else if(bad.includes("Ustabil lengde")){
-    focus="Lengdekontroll"; tip="Slå mot same lengdemål.";
+    focus="Lengdekontroll"; tip="Jobb med tempo og lengde.";
   } else if(bad.includes("Ureint treff")){
-    focus="Treff"; tip="Fokuser på senterkontakt.";
+    focus="Treff"; tip="Fokus på senterkontakt.";
   } else {
     focus="Vedlikehald"; tip="Behald gode rutinar.";
   }
@@ -373,7 +274,19 @@ function evaluate(id){
     <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
     <p class="focus">🎯 Fokus: ${focus}</p>
-    <div class="tip"><strong>🛠 Treningsforslag:</strong> ${tip}</div>`;
+    <div class="tip">
+      <strong>🛠 Treningsforslag:</strong> ${tip}<br>
+      <a href="${getDrillLink(focus)}" target="_blank">👉 Opne øving</a>
+    </div>`;
+}
+
+/* ================= PROFIL & KØLLER ================= */
+
+function openProfile(){
+  alert("Profil kan utvidast vidare seinare.");
+}
+function openManageClubs(){
+  alert("Kølleadministrasjon kan utvidast vidare seinare.");
 }
 </script>
 
