@@ -128,7 +128,7 @@ button {
   </div>
 </div>
 
-<!-- ================= VEL KØLLER (første gong) ================= -->
+<!-- ================= VEL KØLLER ================= -->
 <div id="clubSelectModal" class="overlay" style="display:none;">
   <div class="modal">
     <h2>🏌️ Kva køller har du i bagen?</h2>
@@ -160,9 +160,9 @@ button {
 <script>
 /* ================= KONFIG ================= */
 
-const STORAGE_KEY = "roi_state_v1_4_1";
-const ACTIVE_KEY = "roi_active_clubs_v1_4_1";
-const PROFILE_KEY = "roi_profile_v1_4_1";
+const STORAGE_KEY = "roi_state_v1_4_2";
+const ACTIVE_KEY = "roi_active_clubs_v1_4_2";
+const PROFILE_KEY = "roi_profile_v1_4_2";
 const ONBOARD_KEY = "roi_onboarded_v1";
 
 const CLUBS = [
@@ -180,7 +180,7 @@ const PGA = {
 };
 
 function clubType(id){
-  if(id.includes("W") || id==="Driver") return "wood";
+  if(id === "Driver" || id.includes("W")) return "wood";
   if(id.includes("H")) return "hybrid";
   if(id.includes("i")) return "iron";
   return "wedge";
@@ -192,7 +192,7 @@ let clubStates = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 let activeClubs = JSON.parse(localStorage.getItem(ACTIVE_KEY)) || null;
 let profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
 
-/* ================= ONBOARDING ================= */
+/* ================= ONBOARDING FLOW ================= */
 
 const onboardSteps = [
   {t:"Dette er ein trenar", d:"Appen gir konkrete treningsråd per kølle – ikkje berre tal."},
@@ -243,7 +243,7 @@ function saveProfile(){
   document.getElementById("profileModal").style.display="none";
 }
 
-/* ================= KØLLER ================= */
+/* ================= KØLLEVAL ================= */
 
 function openClubSelect(manage=false){
   const modal = manage?"manageClubsModal":"clubSelectModal";
@@ -268,17 +268,13 @@ function saveActiveClubs(manage=false){
 
 function openManageClubs(){ openClubSelect(true); }
 
-/* ================= RENDER & ANALYSE ================= */
+/* ================= RENDER ================= */
 
 function render(){
   const container=document.getElementById("clubs");
   container.innerHTML="";
   activeClubs.forEach(id=>{
     clubStates[id] ||= {baseline:null, previous:null, current:{}};
-    const type=clubType(id);
-    const p=PGA[type];
-    const v=clubStates[id].current;
-
     container.innerHTML+=`
       <div class="card">
         <div class="accordion-header" onclick="toggle('${id}')">
@@ -293,10 +289,12 @@ function render(){
           <div id="eval-${id}"></div>
         </div>
       </div>`;
-    evaluate(id,p);
+    evaluate(id);
   });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
 }
+
+/* ================= UI HELPERS ================= */
 
 function toggle(id){
   const el=document.getElementById("content-"+id);
@@ -305,28 +303,57 @@ function toggle(id){
   ic.textContent=el.style.display==="block"?"▼":"▶";
 }
 
-function input(id,k,l,h,s=1){
-  const v=clubStates[id].current[k]??"";
+function input(id,key,label,hint,step=1){
+  const v=clubStates[id].current[key] ?? "";
   return `<div class="field">
-    <label>${l}</label><div class="hint">${h}</div>
-    <input type="number" step="${s}" value="${v}"
-      oninput="clubStates['${id}'].current['${k}']=parseFloat(this.value); render()">
+    <label>${label}</label>
+    <div class="hint">${hint}</div>
+    <input type="number" step="${step}" value="${v}"
+      oninput="updateValue('${id}','${key}',this.value)">
   </div>`;
 }
 
-function evaluate(id,p){
+/* ================= FIX: MÅLRETTA INPUT ================= */
+
+function updateValue(id,key,value){
+  clubStates[id].current[key] = value ? parseFloat(value) : undefined;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(clubStates));
+  evaluate(id);
+}
+
+/* ================= ANALYSE ================= */
+
+function evaluate(id){
   const v=clubStates[id].current;
+  const p=PGA[clubType(id)];
   const el=document.getElementById("eval-"+id);
-  if(!v.side&&!v.cons&&!v.smash){
-    el.innerHTML="<p class='small'>Legg inn data.</p>"; return;
+
+  if(!v.side && !v.cons && !v.smash){
+    el.innerHTML="<p class='small'>Legg inn data.</p>";
+    return;
   }
-  let good=[],bad=[];
+
+  let good=[],bad=[],focus="",tip="";
+
   if(v.side<=p.side) good.push("God sidekontroll"); else bad.push("For stort sideutslag");
   if(v.cons<=p.cons) good.push("Stabil lengde"); else bad.push("Ustabil lengde");
   if(v.smash>=p.smash) good.push("Reint treff"); else bad.push("Ureint treff");
+
+  if(bad.includes("For stort sideutslag")){
+    focus="Presisjon"; tip="Slå mot faste mål og sjå kvar ballen startar.";
+  } else if(bad.includes("Ustabil lengde")){
+    focus="Lengdekontroll"; tip="Variér lengde, same tempo.";
+  } else if(bad.includes("Ureint treff")){
+    focus="Treff"; tip="Fokuser på å treffe midt i kølleflata.";
+  } else {
+    focus="Vedlikehald"; tip="Behald gode rutinar.";
+  }
+
   el.innerHTML=`
     <p class="good"><strong>Bra:</strong> ${good.join(", ")}</p>
-    <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>`;
+    <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
+    <p class="focus">🎯 Fokus: ${focus}</p>
+    <div class="tip"><strong>🛠 Treningsforslag:</strong> ${tip}</div>`;
 }
 </script>
 
