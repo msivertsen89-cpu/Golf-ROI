@@ -122,7 +122,6 @@ button {
       <option>Lengde</option>
       <option>Stabilitet</option>
     </select>
-    <p class="small">Brukast når fleire område er like svake.</p>
 
     <button onclick="saveProfile()">Lagre</button>
   </div>
@@ -160,9 +159,9 @@ button {
 <script>
 /* ================= KONFIG ================= */
 
-const STORAGE_KEY = "roi_state_v1_4_2";
-const ACTIVE_KEY = "roi_active_clubs_v1_4_2";
-const PROFILE_KEY = "roi_profile_v1_4_2";
+const STORAGE_KEY = "roi_state_v1_4_4";
+const ACTIVE_KEY  = "roi_active_clubs_v1_4_4";
+const PROFILE_KEY = "roi_profile_v1_4_4";
 const ONBOARD_KEY = "roi_onboarded_v1";
 
 const CLUBS = [
@@ -173,16 +172,24 @@ const CLUBS = [
 ];
 
 const PGA = {
-  wood:{ side:12, cons:12, smash:1.45 },
-  hybrid:{ side:10, cons:10, smash:1.38 },
-  iron:{ side:9, cons:8, smash:1.32 },
-  wedge:{ side:7, cons:6, smash:1.25 }
+  wood:{ side:12, cons:12 },
+  hybrid:{ side:10, cons:10 },
+  iron:{ side:9, cons:8 },
+  wedge:{ side:7, cons:6 }
+};
+
+const SMASH_TARGET = {
+  wood:   1.45,
+  hybrid: 1.38,
+  iron:   1.32,
+  wedge:  1.22
 };
 
 function clubType(id){
-  if(id === "Driver" || id.includes("W")) return "wood";
-  if(id.includes("H")) return "hybrid";
-  if(id.includes("i")) return "iron";
+  if(id === "Driver") return "wood";
+  if(["3W","5W","7W"].includes(id)) return "wood";
+  if(["2H","3H","4H","5H"].includes(id)) return "hybrid";
+  if(id.endsWith("i")) return "iron";
   return "wedge";
 }
 
@@ -192,11 +199,11 @@ let clubStates = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 let activeClubs = JSON.parse(localStorage.getItem(ACTIVE_KEY)) || null;
 let profile = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {};
 
-/* ================= ONBOARDING FLOW ================= */
+/* ================= ONBOARDING ================= */
 
 const onboardSteps = [
   {t:"Dette er ein trenar", d:"Appen gir konkrete treningsråd per kølle – ikkje berre tal."},
-  {t:"Dette treng du", d:"Legg inn grove snitt. Start med 2–3 køller – det er meir enn godt nok."},
+  {t:"Dette treng du", d:"Legg inn grove snitt. Start med 2–3 køller – det er meir enn nok."},
   {t:"Dette får du", d:"Du får fokus og øvingar som gjer treninga meir målretta."}
 ];
 let onboardIndex = 0;
@@ -243,7 +250,7 @@ function saveProfile(){
   document.getElementById("profileModal").style.display="none";
 }
 
-/* ================= KØLLEVAL ================= */
+/* ================= KØLLER ================= */
 
 function openClubSelect(manage=false){
   const modal = manage?"manageClubsModal":"clubSelectModal";
@@ -274,7 +281,7 @@ function render(){
   const container=document.getElementById("clubs");
   container.innerHTML="";
   activeClubs.forEach(id=>{
-    clubStates[id] ||= {baseline:null, previous:null, current:{}};
+    clubStates[id] ||= { baseline:null, previous:null, current:{} };
     container.innerHTML+=`
       <div class="card">
         <div class="accordion-header" onclick="toggle('${id}')">
@@ -284,7 +291,7 @@ function render(){
           <div class="grid">
             ${input(id,"side","Side-consistency (m)","Side-til-side utslag")}
             ${input(id,"cons","Length consistency (m)","Kor jamn lengda er")}
-            ${input(id,"smash","Smash factor","Kor reint du treff",0.01)}
+            ${input(id,"smash","Smash factor","Ball speed / club speed",0.01)}
           </div>
           <div id="eval-${id}"></div>
         </div>
@@ -313,7 +320,7 @@ function input(id,key,label,hint,step=1){
   </div>`;
 }
 
-/* ================= FIX: MÅLRETTA INPUT ================= */
+/* ================= INPUT (STABIL) ================= */
 
 function updateValue(id,key,value){
   clubStates[id].current[key] = value ? parseFloat(value) : undefined;
@@ -325,32 +332,45 @@ function updateValue(id,key,value){
 
 function evaluate(id){
   const v=clubStates[id].current;
-  const p=PGA[clubType(id)];
+  const type=clubType(id);
+  const p=PGA[type];
+  const smashTarget=SMASH_TARGET[type];
   const el=document.getElementById("eval-"+id);
 
-  if(!v.side && !v.cons && !v.smash){
-    el.innerHTML="<p class='small'>Legg inn data.</p>";
+  let good=[], bad=[], focus="", tip="";
+
+  if(v.side != null){
+    if(v.side <= p.side) good.push("God sidekontroll");
+    else bad.push("For stort sideutslag");
+  }
+
+  if(v.cons != null){
+    if(v.cons <= p.cons) good.push("Stabil lengde");
+    else bad.push("Ustabil lengde");
+  }
+
+  if(v.smash != null){
+    if(v.smash >= smashTarget) good.push("Reint treff");
+    else bad.push("Ureint treff");
+  }
+
+  if(!good.length && !bad.length){
+    el.innerHTML="<p class='small'>Legg inn data for analyse.</p>";
     return;
   }
 
-  let good=[],bad=[],focus="",tip="";
-
-  if(v.side<=p.side) good.push("God sidekontroll"); else bad.push("For stort sideutslag");
-  if(v.cons<=p.cons) good.push("Stabil lengde"); else bad.push("Ustabil lengde");
-  if(v.smash>=p.smash) good.push("Reint treff"); else bad.push("Ureint treff");
-
   if(bad.includes("For stort sideutslag")){
-    focus="Presisjon"; tip="Slå mot faste mål og sjå kvar ballen startar.";
+    focus="Presisjon"; tip="Jobb med startretning og sikte.";
   } else if(bad.includes("Ustabil lengde")){
-    focus="Lengdekontroll"; tip="Variér lengde, same tempo.";
+    focus="Lengdekontroll"; tip="Slå mot same lengdemål.";
   } else if(bad.includes("Ureint treff")){
-    focus="Treff"; tip="Fokuser på å treffe midt i kølleflata.";
+    focus="Treff"; tip="Fokuser på senterkontakt.";
   } else {
     focus="Vedlikehald"; tip="Behald gode rutinar.";
   }
 
   el.innerHTML=`
-    <p class="good"><strong>Bra:</strong> ${good.join(", ")}</p>
+    <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
     <p class="focus">🎯 Fokus: ${focus}</p>
     <div class="tip"><strong>🛠 Treningsforslag:</strong> ${tip}</div>`;
