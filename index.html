@@ -44,13 +44,9 @@ button {
   grid-template-columns: repeat(auto-fit,minmax(170px,1fr));
   gap:12px;
 }
-.field label {
-  font-size:13px;
-}
-.field .hint {
-  font-size:12px;
-  color:#777;
-}
+.field label { font-size:13px; }
+.field .hint { font-size:12px; color:#777; }
+
 input[type=number], select {
   width:100%;
   padding:6px;
@@ -72,7 +68,13 @@ input[type=number], select {
 .diff-up { color:green; }
 .diff-down { color:#c62828; }
 
-/* MODAL */
+.save-msg {
+  color:green;
+  font-size:13px;
+  margin-top:6px;
+}
+
+/* MODALS */
 .overlay {
   position:fixed;
   inset:0;
@@ -159,15 +161,10 @@ input[type=number], select {
 
 const STORAGE = "roi_state_v1_1";
 const PROFILE = "roi_profile_v1_1";
-const ACTIVE = "roi_active_clubs_v1_1";
+const ACTIVE  = "roi_active_clubs_v1_1";
+
 const ALL_CLUBS = [
   "Driver","3W","5W","7W",
-  "3i","4i","5i","6i","7i","8i","9i",
-  "PW","50°","56°","60°"
-];
-const CLUB_ORDER = [
-  "Driver",
-  "3W","5W","7W",
   "3i","4i","5i","6i","7i","8i","9i",
   "PW","50°","56°","60°"
 ];
@@ -195,57 +192,52 @@ function drillLink(f){
 /* ===================== STATE ===================== */
 
 let state = JSON.parse(localStorage.getItem(STORAGE)) || {};
-function getActiveClubs(){
-  const stored = JSON.parse(localStorage.getItem(ACTIVE)) || [];
+let active = JSON.parse(localStorage.getItem(ACTIVE)) || [];
 
-  // Sorter alltid etter autorativ rekkefølge
-  return CLUB_ORDER.filter(c => stored.includes(c));
+/* ===================== TREND HELPERS ===================== */
+
+function trend(current, reference, higherIsBetter){
+  const diff = current - reference;
+  const good = higherIsBetter ? diff >= 0 : diff <= 0;
+  const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "→";
+  const cls = good ? "diff-up" : "diff-down";
+  return `<span class="${cls}">${arrow} ${Math.abs(diff).toFixed(2)}</span>`;
 }
 
-/* ===================== UI ===================== */
+/* ===================== RENDER ===================== */
 
 const wrap = document.getElementById("clubs");
-function normalizeClubState(c){
-  if(!state[c]) state[c] = {};
-  if(!state[c].current) state[c].current = {};
-  if(!("baseline" in state[c])) state[c].baseline = null;
-}
 
 function render(){
   wrap.innerHTML = "";
 
-  const activeClubs = getActiveClubs();
-
-  if(activeClubs.length === 0){
+  if(active.length === 0){
     wrap.innerHTML = `
       <div class="card small">
         Ingen køller vald. Trykk på <strong>🏌️ Køller</strong> for å velje.
-      </div>
-    `;
+      </div>`;
     return;
   }
 
-  activeClubs.forEach(c=>{
-    normalizeClubState(c);
+  active.forEach(c=>{
+    state[c] ||= { current:{}, baseline:null, previous:null };
 
     wrap.innerHTML += `
       <div class="card">
         <div class="accordion-header" onclick="toggle('${c}')">
           ${c}<span id="icon-${c}">▶</span>
         </div>
-
         <div class="accordion-content" id="content-${c}">
           <div class="grid">
             ${field(c,"side","Side-consistency (m)","Side-til-side utslag")}
             ${field(c,"cons","Length consistency (m)","Lengdespredning")}
             ${field(c,"smash","Smash factor","Treffkvalitet",0.01)}
           </div>
-
           ${baselineButtons(c)}
           <div id="eval-${c}"></div>
+          <div id="save-msg-${c}"></div>
         </div>
-      </div>
-    `;
+      </div>`;
     evaluate(c);
   });
 
@@ -253,54 +245,61 @@ function render(){
 }
 
 function field(c,k,l,h,s=1){
-  const v=state[c].current[k]??"";
+  const v = state[c].current[k] ?? "";
   return `
-  <div class="field">
-    <label>${l}</label>
-    <div class="hint">${h}</div>
-    <input type="number" step="${s}" value="${v}"
-      oninput="update('${c}','${k}',this.value)">
-  </div>`;
+    <div class="field">
+      <label>${l}</label>
+      <div class="hint">${h}</div>
+      <input type="number" step="${s}" value="${v}"
+        oninput="update('${c}','${k}',this.value)">
+    </div>`;
 }
 
 function update(c,k,v){
-  state[c].current[k]=v?parseFloat(v):undefined;
-  localStorage.setItem(STORAGE,JSON.stringify(state));
+  state[c].current[k] = v ? parseFloat(v) : undefined;
+  localStorage.setItem(STORAGE, JSON.stringify(state));
   evaluate(c);
 }
 
 function baselineButtons(c){
-  if(!state[c].baseline){
+  const hasBaseline = state[c].baseline && Object.keys(state[c].baseline).length > 0;
+
+  if(!hasBaseline){
     return `<button onclick="setBaseline('${c}')">📌 Lagre baseline</button>`;
   }
+
   return `
     <p class="small">Baseline lagra ✅</p>
     <button onclick="saveSession('${c}')">💾 Lagre økt</button>
-    <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>`;
+    <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
+  `;
 }
 
 function setBaseline(c){
   state[c].baseline = {...state[c].current};
   localStorage.setItem(STORAGE, JSON.stringify(state));
-
-  // Oppdater berre baseline-knappane
-  document.getElementById("content-"+c).querySelector(".small")?.remove();
-  document.getElementById("content-"+c).insertAdjacentHTML(
-    "beforeend",
-    `<p class="small">Baseline lagra ✅</p>`
-  );
-
-  evaluate(c); // rekn ut analyse på nytt
+  showSaveMsg(c,"✓ Baseline lagra");
+  evaluate(c);
 }
+
 function saveSession(c){
-  alert("Økt lagra");
+  state[c].previous = {...state[c].current};
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+  showSaveMsg(c,"✓ Økt lagra");
 }
+
 function editBaseline(c){
   if(confirm("Slette baseline?")){
-    state[c].baseline=null;
-    localStorage.setItem(STORAGE,JSON.stringify(state));
+    state[c].baseline = null;
+    localStorage.setItem(STORAGE, JSON.stringify(state));
     render();
   }
+}
+
+function showSaveMsg(c,text){
+  const el = document.getElementById("save-msg-"+c);
+  el.innerText = text;
+  setTimeout(()=>el.innerText="",4000);
 }
 
 function toggle(c){
@@ -313,43 +312,47 @@ function toggle(c){
 /* ===================== ANALYSE ===================== */
 
 function evaluate(c){
-  const v=state[c].current;
-  const b=state[c].baseline;
-  const p=PGA[clubType(c)];
-  let good=[],bad=[],focus="Vedlikehald";
+  const v = state[c].current;
+  const b = state[c].baseline;
+  const p = PGA[clubType(c)];
+  let good=[], bad=[], focus="Vedlikehald";
 
   if(v.side!=null){
-    v.side<=p.side?good.push("God sidekontroll"):bad.push("For stort sideutslag");
+    v.side<=p.side ? good.push("God sidekontroll") : bad.push("For stort sideutslag");
   }
   if(v.cons!=null){
-    v.cons<=p.cons?good.push("Stabil lengde"):bad.push("Ustabil lengde");
+    v.cons<=p.cons ? good.push("Stabil lengde") : bad.push("Ustabil lengde");
   }
   if(v.smash!=null){
-    v.smash>=p.smash?good.push("Reint treff"):bad.push("Ureint treff");
+    v.smash>=p.smash ? good.push("Reint treff") : bad.push("Ureint treff");
   }
 
   if(bad.includes("For stort sideutslag")) focus="Presisjon";
   else if(bad.includes("Ustabil lengde")) focus="Lengdekontroll";
   else if(bad.includes("Ureint treff")) focus="Treff";
 
-  let trend="";
+  let trends = "";
   if(b){
-    ["side","cons","smash"].forEach(k=>{
-      if(v[k]!=null&&b[k]!=null){
-        const d=v[k]-b[k];
-        const goodDir=(k==="smash"?d>=0:d<=0);
-        trend+=`<div class="${goodDir?"diff-up":"diff-down"}">
-          ${k}: ${b[k]} → ${v[k]}
-        </div>`;
-      }
-    });
+    trends += `
+      <strong>Trend mot baseline:</strong><br>
+      Side: ${trend(v.side,b.side,false)}<br>
+      Lengde: ${trend(v.cons,b.cons,false)}<br>
+      Smash: ${trend(v.smash,b.smash,true)}<br>`;
+  }
+  if(state[c].previous){
+    const p0 = state[c].previous;
+    trends += `
+      <br><strong>Sidan førre økt:</strong><br>
+      Side: ${trend(v.side,p0.side,false)}<br>
+      Lengde: ${trend(v.cons,p0.cons,false)}<br>
+      Smash: ${trend(v.smash,p0.smash,true)}<br>`;
   }
 
-  document.getElementById("eval-"+c).innerHTML=`
+  document.getElementById("eval-"+c).innerHTML = `
     <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
     <p class="focus">🎯 Fokus: ${focus}</p>
-    ${trend}
+    ${trends ? `<div class="small">${trends}</div>` : ""}
     <div class="tip">
       <strong>🛠 Treningsforslag:</strong><br>
       <a href="${drillLink(focus)}" target="_blank">👉 Opne øving</a>
@@ -364,41 +367,32 @@ function openProfile(){document.getElementById("profile").style.display="flex";}
 function closeProfile(){document.getElementById("profile").style.display="none";}
 function openClubs(){
   document.getElementById("clubsModal").style.display="flex";
-
-  const c = document.getElementById("clubCheckboxes");
-  const activeClubs = getActiveClubs();
-
-  c.innerHTML = "";
-
+  const c=document.getElementById("clubCheckboxes");
+  c.innerHTML="";
   ALL_CLUBS.forEach(k=>{
-    const checked = activeClubs.includes(k) ? "checked" : "";
-
-    c.innerHTML += `
+    c.innerHTML+=`
       <label>
-        <input type="checkbox" ${checked}
-          onchange="toggleClub('${k}')">
-        ${k}
-      </label>
-    `;
+        <input type="checkbox" ${active.includes(k)?"checked":""}
+        onchange="toggleClub('${k}')"> ${k}
+      </label>`;
   });
 }
 function closeClubs(){document.getElementById("clubsModal").style.display="none";}
 
 function toggleClub(k){
-  let active = getActiveClubs();
   active = active.includes(k)
     ? active.filter(x => x !== k)
     : [...active, k];
-  localStorage.setItem(ACTIVE, JSON.stringify(active));
 }
 
 function saveClubs(){
+  localStorage.setItem(ACTIVE, JSON.stringify(active));
   closeClubs();
   render();
 }
 
 function saveProfile(){
-  localStorage.setItem(PROFILE,JSON.stringify({
+  localStorage.setItem(PROFILE, JSON.stringify({
     hcp:document.getElementById("hcp").value,
     preference:document.getElementById("preference").value
   }));
