@@ -725,13 +725,12 @@ renderBagFocus();
 // =====================
 
 function getActiveClubsSafe(){
-  try {
-    const stored = JSON.parse(localStorage.getItem(ACTIVE));
-    return Array.isArray(stored) ? stored : [];
-  } catch(e){
-    return [];
-  }
+  const stored = JSON.parse(localStorage.getItem(ACTIVE)) || [];
+
+  // Returner aktive køller i autoritativ rekkefølgje
+  return ALL_CLUBS.filter(club => stored.includes(club));
 }
+
 
 function getClubsWithBaseline(){
   const active = getActiveClubsSafe();
