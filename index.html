@@ -104,6 +104,10 @@ input[type=number], select {
   <button onclick="openClubs()">🏌️ Køller</button>
 </div>
 
+<!-- 🟢 Samla fokus basert på baseline -->
+<div id="bagFocusCard" class="card" style="display:none;"></div>
+
+<!-- Analyse per kølle -->
 <div id="clubs"></div>
 
 <!-- ONBOARDING -->
@@ -175,6 +179,80 @@ const PGA = {
   wedge:{ side:7, cons:6, smash:1.22 }
 };
 
+/* ===================== COACHING-TEKSTAR (LÅST) ===================== */
+
+const COACHING_TEXT = {
+
+  Presisjon: {
+    title: "Presisjon",
+    short: "Startretning og sidekontroll er hovudutfordringa no.",
+    long: `
+Du taper slag fordi ballen startar for langt til høgre eller venstre.
+
+🎯 Mål:
+- Redusere side-consistency
+- Få fleire slag som startar nær mål-linja
+
+🔍 Sjå etter:
+- Treffpunkt midt i slagflata
+- Stabil oppstilling og sikte
+- Lik startretning frå slag til slag
+`
+  },
+
+  Lengdekontroll: {
+    title: "Lengdekontroll",
+    short: "Variasjon i lengde gjer kølleval og innspel vanskeleg.",
+    long: `
+Du slår både for korte og for lange slag med same kølle.
+
+🎯 Mål:
+- Smalare lengdespredning
+- Meir forutsigbar carry
+
+🔍 Sjå etter:
+- Stabilt tempo
+- Lik ballposisjon
+- Treff i same høgde på slagflata
+`
+  },
+
+  Treffkvalitet: {
+    title: "Treffkvalitet",
+    short: "Smash factor indikerer ustabil ballkontakt.",
+    long: `
+Du mistar fart og kontroll fordi du ikkje treff ballen reint nok.
+
+🎯 Mål:
+- Auke smash factor
+- Treff oftare nær senter av slagflata
+
+🔍 Sjå etter:
+- Kontaktpunkt (bruk gjerne spray/tape)
+- Rolig overgang i nedsving
+- Balanse gjennom treff
+`
+  },
+
+  Vedlikehald: {
+    title: "Vedlikehald",
+    short: "Dette fungerer bra – hald ved like gode vanar.",
+    long: `
+Dataene viser at dette området fungerer godt no.
+
+🎯 Mål:
+- Behalde nivået
+- Unngå regresjon
+
+🔍 Sjå etter:
+- Same rutinar
+- Samme fokus som tidlegare
+- Unngå å endre for mykje
+`
+  }
+
+};
+
 function clubType(c){
   if(c==="Driver"||c.includes("W")) return "wood";
   if(c.endsWith("i")) return "iron";
@@ -202,6 +280,43 @@ function trend(current, reference, higherIsBetter){
   const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "→";
   const cls = good ? "diff-up" : "diff-down";
   return `<span class="${cls}">${arrow} ${Math.abs(diff).toFixed(2)}</span>`;
+}
+
+/* =====================
+   v2.2 – STEG 4: UI-RENDER
+===================== */
+
+function renderBagFocus(){
+  const card = document.getElementById("bagFocusCard");
+  if(!card) return;
+
+  const result = getBagFocus();
+
+  // Fallback: ikkje nok data
+  if(!result || result.clubsCount < 3){
+    card.style.display = "none";
+    return;
+  }
+
+  const focus = result.focus;
+  const text = COACHING_TEXT[focus];
+
+  if(!text){
+    card.style.display = "none";
+    return;
+  }
+
+  card.innerHTML = `
+    <h3>🎯 Fokus for neste treningsbolk</h3>
+    <p><strong>${text.title}</strong></p>
+    <p class="small">${text.short}</p>
+    <pre class="small">${text.long}</pre>
+    <p class="small">
+      Basert på ${result.clubsCount} køller med baseline.
+    </p>
+  `;
+
+  card.style.display = "block";
 }
 
 /* ===================== RENDER ===================== */
@@ -280,6 +395,7 @@ function setBaseline(c){
   localStorage.setItem(STORAGE, JSON.stringify(state));
   showSaveMsg(c,"✓ Baseline lagra");
   evaluate(c);
+  renderBagFocus();
 }
 
 function saveSession(c){
@@ -401,6 +517,77 @@ function saveProfile(){
 
 /* INIT */
 render();
+renderBagFocus();
+
+// =====================
+// v2.2 – STEG 1 (SAFE)
+// =====================
+
+function getActiveClubsSafe(){
+  try {
+    const stored = JSON.parse(localStorage.getItem(ACTIVE));
+    return Array.isArray(stored) ? stored : [];
+  } catch(e){
+    return [];
+  }
+}
+
+function getClubsWithBaseline(){
+  const active = getActiveClubsSafe();
+  if(!Array.isArray(active)) return [];
+
+  return active.filter(id =>
+    state &&
+    state[id] &&
+    state[id].baseline
+  );
+}
+
+function getClubFocus(clubId){
+  if(!state || !state[clubId] || !state[clubId].current) return null;
+
+  const v = state[clubId].current;
+  const p = PGA[clubType(clubId)];
+  if(!p) return null;
+
+  if(v.side != null && v.side > p.side) return "Presisjon";
+  if(v.cons != null && v.cons > p.cons) return "Lengdekontroll";
+  if(v.smash != null && v.smash < p.smash) return "Treffkvalitet";
+
+  return "Vedlikehald";
+}
+/* ==========================================
+   v2.2 – STEG 2: AGGREGERT BAG-FOKUS
+========================================== */
+
+function getBagFocus(){
+  const clubs = getClubsWithBaseline();
+  if(!clubs.length) return null;
+
+  const counts = {};
+
+  clubs.forEach(clubId => {
+    const focus = getClubFocus(clubId);
+    if(!focus) return;
+    counts[focus] = (counts[focus] || 0) + 1;
+  });
+
+  let topFocus = null;
+  let maxCount = 0;
+
+  for(const f in counts){
+    if(counts[f] > maxCount){
+      maxCount = counts[f];
+      topFocus = f;
+    }
+  }
+
+  return {
+    focus: topFocus,
+    breakdown: counts,
+    clubsCount: clubs.length
+  };
+}
 </script>
 
 </body>
