@@ -160,6 +160,15 @@ input[type=number], select {
   </div>
 </div>
 
+<!-- SESSIONS MODAL -->
+<div class="overlay" id="sessionsModal">
+  <div class="modal">
+    <h3 id="sessionsTitle">📚 Økter</h3>
+    <div id="sessionsList"></div>
+    <button onclick="closeSessions()">Lukk</button>
+  </div>
+</div>
+
 <script>
 /* ===================== KONFIG ===================== */
 
@@ -272,6 +281,36 @@ function drillLink(f){
 let state = JSON.parse(localStorage.getItem(STORAGE)) || {};
 let active = JSON.parse(localStorage.getItem(ACTIVE)) || [];
 
+/* =====================
+   v2.3 – DATAMODELL
+   Initialiser økter trygt
+===================== */
+
+function initSessionModel(){
+  if(typeof state !== "object") return;
+
+  Object.keys(state).forEach(clubId => {
+    const club = state[clubId];
+
+    // Sikre baseline-struktur
+    if(club.baseline && !club.baseline.date){
+      club.baseline.date = new Date().toISOString().slice(0,10);
+    }
+
+    // Legg til sessions-array om den manglar
+    if(!Array.isArray(club.sessions)){
+      club.sessions = [];
+    }
+
+    // Sikre current eksisterer
+    if(!club.current){
+      club.current = {};
+    }
+  });
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+}
+
 /* ===================== TREND HELPERS ===================== */
 
 function trend(current, reference, higherIsBetter){
@@ -377,16 +416,18 @@ function update(c,k,v){
 }
 
 function baselineButtons(c){
-  const hasBaseline = state[c].baseline && Object.keys(state[c].baseline).length > 0;
+  const sessionsCount = state[c].sessions?.length || 0;
 
-  if(!hasBaseline){
-    return `<button onclick="setBaseline('${c}')">📌 Lagre baseline</button>`;
+  if(!state[c].baseline){
+    return `
+      <button onclick="setBaseline('${c}')">📌 Lagre baseline</button>
+    `;
   }
 
   return `
     <p class="small">Baseline lagra ✅</p>
-    <button onclick="saveSession('${c}')">💾 Lagre økt</button>
-    <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
+    <button onclick="saveSession('${c}')">➕ Legg til økt</button>
+    <button onclick="openSessions('${c}')">📚 Økter (${sessionsCount})</button>
   `;
 }
 
@@ -399,9 +440,21 @@ function setBaseline(c){
 }
 
 function saveSession(c){
-  state[c].previous = {...state[c].current};
-  localStorage.setItem(STORAGE, JSON.stringify(state));
-  showSaveMsg(c,"✓ Økt lagra");
+  const success = addSession(c);
+
+  if(success){
+    // Oppdater "previous" som siste økt (valfri, men nyttig)
+    const sessions = state[c].sessions;
+    if(sessions && sessions.length){
+      state[c].previous = { ...sessions[sessions.length - 1].data };
+    }
+
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+    showSaveMsg(c, "✓ Økt lagra");
+    renderBagFocus();
+  } else {
+    showSaveMsg(c, "⚠ Fyll inn minst to felt");
+  }
 }
 
 function editBaseline(c){
@@ -515,7 +568,86 @@ function saveProfile(){
   closeProfile();
 }
 
+/* =====================
+   v2.3 – Økter (modal)
+===================== */
+
+function openSessions(c){
+  const modal = document.getElementById("sessionsModal");
+  const title = document.getElementById("sessionsTitle");
+  const list  = document.getElementById("sessionsList");
+
+  if(!modal || !state[c]) return;
+
+  title.textContent = `📚 Økter – ${c}`;
+  list.innerHTML = "";
+
+  const sessions = state[c].sessions || [];
+
+  if(!sessions.length){
+    list.innerHTML = "<p class='small'>Ingen økter lagra enno.</p>";
+  } else {
+    sessions.forEach(s => {
+      list.innerHTML += `
+        <div class="small">
+          Økt ${s.id} – ${s.date}
+        </div>
+      `;
+    });
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeSessions(){
+  const modal = document.getElementById("sessionsModal");
+  if(modal) modal.style.display = "none";
+}
+
 /* INIT */
+initSessionModel();
+
+/* =====================
+   v2.3 – LEGG TIL ØKT
+   Kun logikk (ingen UI)
+===================== */
+
+function canSaveSession(clubId){
+  const club = state[clubId];
+  if(!club || !club.current) return false;
+
+  // Krev minst 2 utfylte parameterar
+  const filled = ["side","cons","smash"].filter(
+    k => club.current[k] != null
+  );
+
+  return filled.length >= 2;
+}
+
+function addSession(clubId){
+  const club = state[clubId];
+  if(!club) return false;
+
+  if(!Array.isArray(club.sessions)){
+    club.sessions = [];
+  }
+
+  if(!canSaveSession(clubId)){
+    return false;
+  }
+
+  const nextId = club.sessions.length + 1;
+
+  club.sessions.push({
+    id: nextId,
+    date: new Date().toISOString().slice(0,10),
+    data: { ...club.current }
+  });
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+  return true;
+}
+
 render();
 renderBagFocus();
 
