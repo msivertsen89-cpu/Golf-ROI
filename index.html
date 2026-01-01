@@ -91,6 +91,10 @@ input[type=number], select {
   max-width:520px;
   width:100%;
 }
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
 </style>
 </head>
 
@@ -387,7 +391,10 @@ function render(){
             ${field(c,"cons","Length consistency (m)","Lengdespredning")}
             ${field(c,"smash","Smash factor","Treffkvalitet",0.01)}
           </div>
-          ${baselineButtons(c)}
+          <div id="buttons-${c}">
+            ${baselineButtons(c)}
+          </div>
+
           <div id="eval-${c}"></div>
           <div id="save-msg-${c}"></div>
         </div>
@@ -451,6 +458,7 @@ function saveSession(c){
 
     localStorage.setItem(STORAGE, JSON.stringify(state));
     showSaveMsg(c, "✓ Økt lagra");
+    document.getElementById(`buttons-${c}`).innerHTML = baselineButtons(c);
     renderBagFocus();
   } else {
     showSaveMsg(c, "⚠ Fyll inn minst to felt");
