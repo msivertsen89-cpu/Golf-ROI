@@ -411,9 +411,14 @@ function field(c,k,l,h,s=1){
     <div class="field">
       <label>${l}</label>
       <div class="hint">${h}</div>
-      <input type="number" step="${s}" value="${v}"
+      <input
+        type="number"
+        name="${k}"
+        step="${s}"
+        value="${v}"
         oninput="update('${c}','${k}',this.value)">
-    </div>`;
+    </div>
+   `;
 }
 
 function update(c,k,v){
@@ -432,10 +437,11 @@ function baselineButtons(c){
   }
 
   return `
-    <p class="small">Baseline lagra ✅</p>
-    <button onclick="saveSession('${c}')">➕ Legg til økt</button>
-    <button onclick="openSessions('${c}')">📚 Økter (${sessionsCount})</button>
-  `;
+  <p class="small">Baseline lagra ✅</p>
+  <button onclick="saveSession('${c}')">➕ Legg til økt</button>
+  <button onclick="openSessions('${c}')">📚 Økter (${sessionsCount})</button>
+  <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
+`;
 }
 
 function setBaseline(c){
@@ -450,20 +456,34 @@ function saveSession(c){
   const success = addSession(c);
 
   if(success){
-    // Oppdater "previous" som siste økt (valfri, men nyttig)
     const sessions = state[c].sessions;
     if(sessions && sessions.length){
       state[c].previous = { ...sessions[sessions.length - 1].data };
     }
 
     localStorage.setItem(STORAGE, JSON.stringify(state));
-    showSaveMsg(c, "✓ Økt lagra");
+    showSaveMsg(c,"✓ Økt lagra");
+
+    // 🔁 Oppdater knappane (Økter n)
     document.getElementById(`buttons-${c}`).innerHTML = baselineButtons(c);
+
+    // 🧹 TØM INPUT ETTER LAGRA ØKT  ← HER
+    state[c].current = {};
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+
+    ["side","cons","smash"].forEach(k => {
+      const input = document.querySelector(
+        `#content-${c} input[name="${k}"]`
+      );
+      if(input) input.value = "";
+    });
+
     renderBagFocus();
   } else {
-    showSaveMsg(c, "⚠ Fyll inn minst to felt");
+    showSaveMsg(c,"⚠ Fyll inn minst to felt");
   }
 }
+
 
 function editBaseline(c){
   if(confirm("Slette baseline?")){
@@ -530,10 +550,51 @@ function evaluate(c){
     <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
     <p class="focus">🎯 Fokus: ${focus}</p>
     ${trends ? `<div class="small">${trends}</div>` : ""}
+    ${trendVsPrevious(c)}
     <div class="tip">
       <strong>🛠 Treningsforslag:</strong><br>
       <a href="${drillLink(focus)}" target="_blank">👉 Opne øving</a>
     </div>`;
+}
+
+function trendVsPrevious(c){
+  const prev = state[c].previous;
+  const curr = state[c].current;
+
+  if(!prev || !curr) return "";
+
+  const rules = {
+    side:  "lower",
+    cons:  "lower",
+    smash: "higher"
+  };
+
+  let rows = [];
+
+  Object.keys(rules).forEach(k => {
+    if(curr[k] != null && prev[k] != null){
+      const diff = curr[k] - prev[k];
+      const better =
+        (rules[k] === "lower"  && diff < 0) ||
+        (rules[k] === "higher" && diff > 0);
+
+      rows.push(`
+        <div class="${better ? "diff-up" : "diff-down"}">
+          ${k}: ${prev[k]} → ${curr[k]}
+          ${better ? "▲" : "▼"}
+        </div>
+      `);
+    }
+  });
+
+  if(!rows.length) return "";
+
+  return `
+    <div class="small" style="margin-top:6px;">
+      <strong>Trend mot førre økt:</strong>
+      ${rows.join("")}
+    </div>
+  `;
 }
 
 /* ===================== MODALS ===================== */
