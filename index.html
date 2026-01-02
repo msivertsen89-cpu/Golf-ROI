@@ -111,6 +111,25 @@ pre {
     font-size: 15px;
   }
 }
+/* =====================
+   C2.4 – Fokus i open kølle
+===================== */
+.club-focus{
+  margin-top:10px;
+  padding:10px;
+  border-radius:6px;
+  background:#fff8e1;
+  border-left:4px solid #ffb300;
+}
+
+.club-focus strong{
+  display:block;
+  margin-bottom:4px;
+}
+.club-focus em{
+  color:#555;
+  font-style:italic;
+}
 
 </style>
 </head>
@@ -389,9 +408,11 @@ function renderBagFocus(){
 const wrap = document.getElementById("clubs");
 
 function render(){
+  wrap.innerHTML = "";
+
   const activeClubs = getActiveClubsSafe();
 
-  if(activeClubs.length === 0){
+  if(!activeClubs.length){
     wrap.innerHTML = `
       <div class="card small">
         Ingen køller vald. Trykk på <strong>🏌️ Køller</strong> for å velje.
@@ -400,15 +421,20 @@ function render(){
     return;
   }
 
-  let html = "";
-
   activeClubs.forEach(c => {
-    state[c] ||= { current:{}, baseline:null };
+    // Sørg for at state-struktur alltid finst
+    if(!state[c]){
+      state[c] = { current:{}, baseline:null, sessions:[] };
+    }
+    if(!state[c].sessions){
+      state[c].sessions = [];
+    }
 
-    html += `
+    wrap.innerHTML += `
       <div class="card">
         <div class="accordion-header" onclick="toggle('${c}')">
-          ${c}<span id="icon-${c}">▶</span>
+          ${c}
+          <span id="icon-${c}">▶</span>
         </div>
 
         <div class="accordion-content" id="content-${c}">
@@ -418,20 +444,19 @@ function render(){
             ${field(c,"smash","Smash factor","Treffkvalitet",0.01)}
           </div>
 
-          <div class="club-actions" id="buttons-${c}">
-            ${baselineButtons(c)}
-          </div>
-
+          <div id="save-${c}"></div>
           <div id="eval-${c}"></div>
         </div>
       </div>
     `;
+
+    renderSaveButtons(c);
+    evaluate(c);
   });
 
-  wrap.innerHTML = html;
   localStorage.setItem(STORAGE, JSON.stringify(state));
-  renderBagFocus();
 }
+renderBagFocus();
 
 function field(c,k,l,h,s=1){
   const v = state[c].current[k] ?? "";
@@ -448,11 +473,31 @@ function field(c,k,l,h,s=1){
     </div>
    `;
 }
+function renderSaveButtons(c){
+  const el = document.getElementById("save-"+c);
+  if(!el) return;
+
+  const s = state[c];
+
+  if(!s.baseline){
+    el.innerHTML = `
+      <button onclick="setBaseline('${c}')">📌 Lagre baseline</button>
+    `;
+  } else {
+    const count = Array.isArray(s.sessions) ? s.sessions.length : 0;
+    el.innerHTML = `
+      <p class="small">Baseline lagra ✅</p>
+      <button onclick="saveSession('${c}')">➕ Legg til økt (${count})</button>
+      <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
+    `;
+  }
+}
 
 function update(c,k,v){
   state[c].current[k] = v ? parseFloat(v) : undefined;
   localStorage.setItem(STORAGE, JSON.stringify(state));
   evaluate(c);
+  renderClubFocus(c);
 }
 
 function baselineButtons(c){
@@ -510,6 +555,7 @@ function saveSession(c){
   } else {
     showSaveMsg(c,"⚠ Fyll inn minst to felt");
   }
+  renderClubFocus(c);
 }
 
 
@@ -521,10 +567,17 @@ function editBaseline(c){
   }
 }
 
-function showSaveMsg(c,text){
-  const el = document.getElementById("save-msg-"+c);
-  el.innerText = text;
-  setTimeout(()=>el.innerText="",4000);
+function showSaveMsg(c, text){
+  const el = document.getElementById(`save-msg-${c}`);
+  if(!el) return;
+
+  el.textContent = text;
+  el.style.display = "block";
+
+  setTimeout(() => {
+    el.textContent = "";
+    el.style.display = "none";
+  }, 2000);
 }
 
 function toggle(c){
@@ -583,6 +636,43 @@ function evaluate(c){
       <strong>🛠 Treningsforslag:</strong><br>
       <a href="${drillLink(focus)}" target="_blank">👉 Opne øving</a>
     </div>`;
+    let highlight = "";
+
+    if(focus === "Presisjon") highlight = "Side-consistency er hovudutfordringa.";
+    if(focus === "Lengdekontroll") highlight = "Lengdespredning er hovudutfordringa.";
+    if(focus === "Treff") highlight = "Treffkvalitet er hovudutfordringa.";
+    if(focus === "Vedlikehald") highlight = "Ingen kritiske avvik.";
+}
+
+function renderClubFocus(c){
+  const el = document.getElementById(`focus-${c}`);
+  if(!el) return;
+
+  const v = state[c]?.current;
+  if(!v) return;
+
+  const type = clubType(c);
+  const p = PGA[type];
+
+  let focus = "Vedlikehald";
+  let reason = "Gode og stabile tal.";
+
+  if(v.side != null && v.side > p.side){
+    focus = "Presisjon";
+    reason = "Side-consistency er over målverdien.";
+  } else if(v.cons != null && v.cons > p.cons){
+    focus = "Lengdekontroll";
+    reason = "Lengdespredning er for stor.";
+  } else if(v.smash != null && v.smash < p.smash){
+    focus = "Treff";
+    reason = "Smash factor er under ønskja nivå.";
+  }
+
+  el.innerHTML = `
+    <strong>🎯 Fokus no:</strong>
+    ${focus}<br>
+    <span class="small">${reason}</span>
+  `;
 }
 
 /* ===================== BAG-FOCUS (C1) ===================== */
