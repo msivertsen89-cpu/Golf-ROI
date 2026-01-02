@@ -484,13 +484,17 @@ function renderSaveButtons(c){
       <button onclick="setBaseline('${c}')">📌 Lagre baseline</button>
     `;
   } else {
-    const count = Array.isArray(s.sessions) ? s.sessions.length : 0;
+    const count = Array.isArray(state[c].sessions)
+      ? state[c].sessions.length
+      : 0;
+
     el.innerHTML = `
-      <p class="small">Baseline lagra ✅</p>
-      <button onclick="saveSession('${c}')">➕ Legg til økt (${count})</button>
+      <button onclick="saveSession('${c}')">➕ Legg til økt</button>
+      <button onclick="openSessions('${c}')">📚 Økter (${count})</button>
       <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
-    `;
+  ` ;
   }
+
 }
 
 function update(c,k,v){
@@ -519,10 +523,17 @@ function baselineButtons(c){
 
 function setBaseline(c){
   state[c].baseline = {...state[c].current};
+
+  // Initier økter om dei ikkje finst
+  if(!Array.isArray(state[c].sessions)){
+    state[c].sessions = [];
+  }
+
   localStorage.setItem(STORAGE, JSON.stringify(state));
   showSaveMsg(c,"✓ Baseline lagra");
+
+  renderSaveButtons(c);   // 👈 DETTE ER NØKKELEN
   evaluate(c);
-  renderBagFocus();
 }
 
 function saveSession(c){
@@ -536,6 +547,9 @@ function saveSession(c){
 
     localStorage.setItem(STORAGE, JSON.stringify(state));
     showSaveMsg(c,"✓ Økt lagra");
+
+      // 🔴 VIKTIG: Oppdater UI
+    renderSaveButtons(c);
 
     // 🔁 Oppdater knappane (Økter n)
     document.getElementById(`buttons-${c}`).innerHTML = baselineButtons(c);
