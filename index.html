@@ -5,85 +5,77 @@
 <title>Golf ROI – Treningsanalyse</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- ===============================
-  Golf ROI – v2.3-clean
-  DESIGN FREEZE
-================================ -->
-
 <style>
-body{
-  font-family:Arial,sans-serif;
+body {
+  font-family: Arial, sans-serif;
   background:#f4f6f8;
   padding:16px;
   max-width:1000px;
   margin:auto;
 }
-h1{margin-top:8px}
+h1 { margin-top:10px; }
 
-.card{
-  background:#fff;
+.card {
+  background:white;
   padding:14px;
   margin-bottom:14px;
   border-radius:8px;
 }
 
-button{
-  padding:10px 14px;
+button {
+  padding:6px 10px;
   margin:4px 4px 0 0;
   cursor:pointer;
 }
 
-.accordion-header{
+.accordion-header {
   font-weight:bold;
   cursor:pointer;
   display:flex;
   justify-content:space-between;
 }
-
-.accordion-content{
+.accordion-content {
   display:none;
   margin-top:12px;
 }
 
-.grid{
+.grid {
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  grid-template-columns: repeat(auto-fit,minmax(170px,1fr));
   gap:12px;
 }
+.field label { font-size:13px; }
+.field .hint { font-size:12px; color:#777; }
 
-.field label{font-size:13px}
-.field .hint{font-size:12px;color:#777}
-
-input[type=number],select{
+input[type=number], select {
   width:100%;
   padding:6px;
 }
 
-.good{color:green}
-.bad{color:#c62828}
-.focus{color:#ef6c00;font-weight:bold}
+.good { color:green; }
+.bad { color:#c62828; }
+.focus { color:#ef6c00; font-weight:bold; }
 
-.club-focus{
-  background:#fff8e1;
-  border-left:4px solid #ffb300;
-  padding:10px;
-  border-radius:6px;
-  margin-top:10px;
-}
-
-.tip{
+.tip {
   background:#f1f8e9;
   padding:10px;
   border-radius:6px;
   margin-top:8px;
 }
 
-.small{font-size:13px;color:#555}
+.small { font-size:13px; color:#555; }
 
-.diff-up{color:green}
-.diff-down{color:#c62828}
+.diff-up { color:green; }
+.diff-down { color:#c62828; }
 
-.overlay{
+.save-msg {
+  color:green;
+  font-size:13px;
+  margin-top:6px;
+}
+
+/* MODALS */
+.overlay {
   position:fixed;
   inset:0;
   background:rgba(0,0,0,0.55);
@@ -92,19 +84,53 @@ input[type=number],select{
   justify-content:center;
   z-index:1000;
 }
-
-.modal{
-  background:#fff;
+.modal {
+  background:white;
   padding:20px;
   border-radius:8px;
   max-width:520px;
   width:100%;
 }
-
-pre{
-  white-space:pre-wrap;
-  word-wrap:break-word;
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
+/* Mobil: prioriter handlingar */
+@media (max-width: 640px){
+  .club-actions{
+    order: -1;
+    margin-bottom: 10px;
+  }
+}
+/* =====================
+   C2.2 – Mobil: større knappar
+===================== */
+@media (max-width: 640px){
+  button{
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+}
+/* =====================
+   C2.4 – Fokus i open kølle
+===================== */
+.club-focus{
+  margin-top:10px;
+  padding:10px;
+  border-radius:6px;
+  background:#fff8e1;
+  border-left:4px solid #ffb300;
+}
+
+.club-focus strong{
+  display:block;
+  margin-bottom:4px;
+}
+.club-focus em{
+  color:#555;
+  font-style:italic;
+}
+
 </style>
 </head>
 
@@ -118,30 +144,31 @@ pre{
   <button onclick="openClubs()">🏌️ Køller</button>
 </div>
 
-<!-- BAG FOCUS -->
+<!-- 🟢 Samla fokus basert på baseline -->
 <div id="bagFocusCard" class="card" style="display:none;"></div>
 
-<!-- CLUBS -->
+<!-- Analyse per kølle -->
 <div id="clubs"></div>
 
-<!-- MODALS -->
-
+<!-- ONBOARDING -->
 <div class="overlay" id="onboarding">
   <div class="modal">
     <h3>🚀 Kom i gang</h3>
     <ol>
       <li>Vel køllene du brukar</li>
-      <li>Legg inn gjennomsnittstal</li>
+      <li>Legg inn gjennomsnittsdata</li>
       <li>Lagre baseline</li>
-      <li>Legg til økter og følg utvikling</li>
+      <li>Følg utvikling over tid</li>
     </ol>
     <button onclick="closeOnboarding()">Lukk</button>
   </div>
 </div>
 
+<!-- PROFIL -->
 <div class="overlay" id="profile">
   <div class="modal">
     <h3>⚙️ Profil</h3>
+
     <label>Handicap-nivå</label>
     <select id="hcp">
       <option>0–8</option>
@@ -158,11 +185,12 @@ pre{
     </select>
 
     <br><br>
-    <button onclick="saveProfile()">💾 Lagre</button>
+    <button onclick="saveProfile()">💾 Lagre profil</button>
     <button onclick="closeProfile()">Lukk</button>
   </div>
 </div>
 
+<!-- KØLLEVAL -->
 <div class="overlay" id="clubsModal">
   <div class="modal">
     <h3>🏌️ Vel køller</h3>
@@ -172,6 +200,7 @@ pre{
   </div>
 </div>
 
+<!-- SESSIONS MODAL -->
 <div class="overlay" id="sessionsModal">
   <div class="modal">
     <h3 id="sessionsTitle">📚 Økter</h3>
@@ -181,243 +210,738 @@ pre{
 </div>
 
 <script>
-/* ================= CONFIG ================= */
 
-const STORAGE="roi_state_v2_3";
-const ACTIVE="roi_active_clubs_v2_3";
-const PROFILE="roi_profile_v2_3";
+/* ===================== KONFIG ===================== */
 
-const ALL_CLUBS=[
- "Driver",
- "3W","5W","7W",
- "3i","4i","5i","6i","7i","8i","9i",
- "PW","50°","56°","60°"
+const STORAGE = "roi_state_v1_1";
+const PROFILE = "roi_profile_v1_1";
+const ACTIVE  = "roi_active_clubs_v1_1";
+
+const ALL_CLUBS = [
+  "Driver",
+  "3W","5W","7W",
+  "3H","4H","5H",
+  "3i","4i","5i","6i","7i","8i","9i",
+  "PW",
+  "50°",
+  "56°",
+  "60°"
 ];
 
-const PGA={
- wood:{side:12,cons:12,smash:1.45},
- iron:{side:9,cons:8,smash:1.32},
- wedge:{side:7,cons:6,smash:1.22}
+const PGA = {
+  wood:{ side:12, cons:12, smash:1.45 },
+  iron:{ side:9, cons:8, smash:1.32 },
+  wedge:{ side:7, cons:6, smash:1.22 }
 };
 
-/* ================= COACHING ================= */
+/* ===================== COACHING-TEKSTAR (LÅST) ===================== */
 
-const COACHING={
- Presisjon:"ovelser/startretning.html",
- Lengdekontroll:"ovelser/lengdekontroll.html",
- Treff:"ovelser/treffkvalitet.html",
- Vedlikehald:"ovelser/vedlikehald.html"
+const COACHING_TEXT = {
+
+  Presisjon: {
+    title: "Presisjon",
+    short: "Startretning og sidekontroll er hovudutfordringa no.",
+    long: `
+Du taper slag fordi ballen startar for langt til høgre eller venstre.
+
+🎯 Mål:
+- Redusere side-consistency
+- Få fleire slag som startar nær mål-linja
+
+🔍 Sjå etter:
+- Treffpunkt midt i slagflata
+- Stabil oppstilling og sikte
+- Lik startretning frå slag til slag
+`
+  },
+
+  Lengdekontroll: {
+    title: "Lengdekontroll",
+    short: "Variasjon i lengde gjer kølleval og innspel vanskeleg.",
+    long: `
+Du slår både for korte og for lange slag med same kølle.
+
+🎯 Mål:
+- Smalare lengdespredning
+- Meir forutsigbar carry
+
+🔍 Sjå etter:
+- Stabilt tempo
+- Lik ballposisjon
+- Treff i same høgde på slagflata
+`
+  },
+
+  Treffkvalitet: {
+    title: "Treffkvalitet",
+    short: "Smash factor indikerer ustabil ballkontakt.",
+    long: `
+Du mistar fart og kontroll fordi du ikkje treff ballen reint nok.
+
+🎯 Mål:
+- Auke smash factor
+- Treff oftare nær senter av slagflata
+
+🔍 Sjå etter:
+- Kontaktpunkt (bruk gjerne spray/tape)
+- Rolig overgang i nedsving
+- Balanse gjennom treff
+`
+  },
+
+  Vedlikehald: {
+    title: "Vedlikehald",
+    short: "Dette fungerer bra – hald ved like gode vanar.",
+    long: `
+Dataene viser at dette området fungerer godt no.
+
+🎯 Mål:
+- Behalde nivået
+- Unngå regresjon
+
+🔍 Sjå etter:
+- Same rutinar
+- Samme fokus som tidlegare
+- Unngå å endre for mykje
+`
+  }
+
 };
-
-/* ================= STATE ================= */
-
-let state=JSON.parse(localStorage.getItem(STORAGE))||{};
-let active=JSON.parse(localStorage.getItem(ACTIVE))||[];
-
-/* ================= HELPERS ================= */
 
 function clubType(c){
- if(c==="Driver"||c.includes("W"))return"wood";
- if(c.endsWith("i"))return"iron";
- return"wedge";
-}
-function getActiveClubs(){
- return ALL_CLUBS.filter(c=>active.includes(c));
+  if(c==="Driver"||c.includes("W")) return "wood";
+  if(c.endsWith("i")) return "iron";
+  return "wedge";
 }
 
-/* ================= BAG FOCUS ================= */
-
-function calculateBagFocus(){
- let counts={Presisjon:0,Lengdekontroll:0,Treff:0};
- getActiveClubs().forEach(c=>{
-  if(!state[c]||!state[c].baseline||!state[c].current)return;
-  const v=state[c].current,b=state[c].baseline,p=PGA[clubType(c)];
-  if(v.side>b.side)counts.Presisjon++;
-  else if(v.cons>b.cons)counts.Lengdekontroll++;
-  else if(v.smash<b.smash)counts.Treff++;
- });
- let top=null,max=0;
- for(const k in counts){if(counts[k]>max){max=counts[k];top=k}}
- if(!top||max<2)return null;
- return{focus:top,count:max};
+function drillLink(f){
+  if(f==="Presisjon") return "ovelser/startretning.html";
+  if(f==="Lengdekontroll") return "ovelser/lengdekontroll.html";
+  if(f==="Treff") return "ovelser/treffkvalitet.html";
+  if(f==="Vedlikehald") return "ovelser/vedlikehald.html";
+  return "ovelser/driver-kontroll.html";
 }
+
+/* ===================== STATE ===================== */
+
+let state = JSON.parse(localStorage.getItem(STORAGE)) || {};
+let active = JSON.parse(localStorage.getItem(ACTIVE)) || [];
+
+/* =====================
+   v2.3 – DATAMODELL
+   Initialiser økter trygt
+===================== */
+
+function initSessionModel(){
+  if(typeof state !== "object") return;
+
+  Object.keys(state).forEach(clubId => {
+    const club = state[clubId];
+
+    // Sikre baseline-struktur
+    if(club.baseline && !club.baseline.date){
+      club.baseline.date = new Date().toISOString().slice(0,10);
+    }
+
+    // Legg til sessions-array om den manglar
+    if(!Array.isArray(club.sessions)){
+      club.sessions = [];
+    }
+
+    // Sikre current eksisterer
+    if(!club.current){
+      club.current = {};
+    }
+  });
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+}
+
+/* ===================== TREND HELPERS ===================== */
+
+function trend(current, reference, higherIsBetter){
+  const diff = current - reference;
+  const good = higherIsBetter ? diff >= 0 : diff <= 0;
+  const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "→";
+  const cls = good ? "diff-up" : "diff-down";
+  return `<span class="${cls}">${arrow} ${Math.abs(diff).toFixed(2)}</span>`;
+}
+
+/* =====================
+   v2.2 – STEG 4: UI-RENDER
+===================== */
 
 function renderBagFocus(){
- const card=document.getElementById("bagFocusCard");
- const r=calculateBagFocus();
- if(!r){card.style.display="none";return}
- card.style.display="block";
- card.innerHTML=`
-  <h3>🎯 Fokus for neste treningsbolk</h3>
-  <p><strong>${r.focus}</strong></p>
-  <p class="small">Basert på ${r.count} køller med avvik frå baseline</p>
- `;
+  const card = document.getElementById("bagFocusCard");
+  if(!card) return;
+
+  const result = calculateBagFocus(); // 👈 DETTE mangla
+
+  if(!result){
+    card.style.display = "none";
+    return;
+  }
+
+  const text = COACHING_TEXT[result.focus];
+  if(!text){
+    card.style.display = "none";
+    return;
+  }
+
+  card.innerHTML = `
+    <h3>🎯 Fokus for neste treningsbolk</h3>
+    <p><strong>${text.title}</strong></p>
+    <p class="small">${text.short}</p>
+    <pre class="small">${text.long}</pre>
+    <p class="small">
+      Basert på ${result.count} køller (${result.clubs.join(", ")})
+    </p>
+  `;
+
+  card.style.display = "block";
 }
 
-/* ================= RENDER ================= */
+/* ===================== RENDER ===================== */
 
-const wrap=document.getElementById("clubs");
+const wrap = document.getElementById("clubs");
 
 function render(){
- wrap.innerHTML="";
- const clubs=getActiveClubs();
- if(!clubs.length){
-  wrap.innerHTML=`<div class="card small">Ingen køller vald.</div>`;
-  return;
- }
- clubs.forEach(c=>{
-  state[c] ||= {current:{},baseline:null,sessions:[]};
-  wrap.innerHTML+=`
-   <div class="card">
-    <div class="accordion-header" onclick="toggle('${c}')">
-      ${c}<span id="icon-${c}">▶</span>
-    </div>
-    <div class="accordion-content" id="content-${c}">
-      <div class="grid">
-        ${field(c,"side","Side-consistency")}
-        ${field(c,"cons","Length consistency")}
-        ${field(c,"smash","Smash factor",0.01)}
+  wrap.innerHTML = "";
+
+  const activeClubs = getActiveClubsSafe();
+
+  if(!activeClubs.length){
+    wrap.innerHTML = `
+      <div class="card small">
+        Ingen køller vald. Trykk på <strong>🏌️ Køller</strong> for å velje.
       </div>
-      <div id="actions-${c}"></div>
-      <div id="eval-${c}"></div>
+    `;
+    return;
+  }
+
+  activeClubs.forEach(c => {
+    // Sørg for at state-struktur alltid finst
+    if(!state[c]){
+      state[c] = { current:{}, baseline:null, sessions:[] };
+    }
+    if(!state[c].sessions){
+      state[c].sessions = [];
+    }
+
+    wrap.innerHTML += `
+      <div class="card">
+        <div class="accordion-header" onclick="toggle('${c}')">
+          ${c}
+          <span id="icon-${c}">▶</span>
+        </div>
+
+        <div class="accordion-content" id="content-${c}">
+          <div class="grid">
+            ${field(c,"side","Side-consistency (m)","Side-til-side utslag")}
+            ${field(c,"cons","Length consistency (m)","Lengdespredning")}
+            ${field(c,"smash","Smash factor","Treffkvalitet",0.01)}
+          </div>
+
+          <div id="save-${c}"></div>
+          <div id="eval-${c}"></div>
+        </div>
+      </div>
+    `;
+
+    renderSaveButtons(c);
+    evaluate(c);
+  });
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+}
+renderBagFocus();
+
+function field(c,k,l,h,s=1){
+  const v = state[c].current[k] ?? "";
+  return `
+    <div class="field">
+      <label>${l}</label>
+      <div class="hint">${h}</div>
+      <input
+        type="number"
+        name="${k}"
+        step="${s}"
+        value="${v}"
+        oninput="update('${c}','${k}',this.value)">
     </div>
-   </div>`;
-  renderActions(c);
-  evaluate(c);
- });
- localStorage.setItem(STORAGE,JSON.stringify(state));
- renderBagFocus();
+   `;
 }
+function renderSaveButtons(c){
+  const el = document.getElementById("save-"+c);
+  if(!el) return;
 
-function field(c,k,l,s=1){
- return`
- <div class="field">
-  <label>${l}</label>
-  <input type="number" step="${s}"
-   value="${state[c].current[k]??""}"
-   oninput="update('${c}','${k}',this.value)">
- </div>`;
-}
+  const s = state[c];
 
-/* ================= ACTIONS ================= */
+  if(!s.baseline){
+    el.innerHTML = `
+      <button onclick="setBaseline('${c}')">📌 Lagre baseline</button>
+    `;
+  } else {
+    const count = Array.isArray(state[c].sessions)
+      ? state[c].sessions.length
+      : 0;
 
-function renderActions(c){
- const el=document.getElementById("actions-"+c);
- const club=state[c];
- if(!club.baseline){
-  el.innerHTML=`<button onclick="setBaseline('${c}')">📌 Lagre baseline</button>`;
- }else{
-  el.innerHTML=`
-   <button onclick="addSession('${c}')">➕ Legg til økt</button>
-   <button onclick="openSessions('${c}')">📚 Økter (${club.sessions.length})</button>
-   <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>`;
- }
+    el.innerHTML = `
+      <button onclick="saveSession('${c}')">➕ Legg til økt</button>
+      <button onclick="openSessions('${c}')">📚 Økter (${count})</button>
+      <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
+  ` ;
+  }
+
 }
 
 function update(c,k,v){
- state[c].current[k]=v?parseFloat(v):undefined;
- localStorage.setItem(STORAGE,JSON.stringify(state));
- evaluate(c);
- renderBagFocus();
+  state[c].current[k] = v ? parseFloat(v) : undefined;
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+  evaluate(c);
+  renderClubFocus(c);
+}
+
+function baselineButtons(c){
+  const sessionsCount = state[c].sessions?.length || 0;
+
+  if(!state[c].baseline){
+    return `
+      <button onclick="setBaseline('${c}')">📌 Lagre baseline</button>
+    `;
+  }
+
+  return `
+  <p class="small">Baseline lagra ✅</p>
+  <button onclick="saveSession('${c}')">➕ Legg til økt</button>
+  <button onclick="openSessions('${c}')">📚 Økter (${sessionsCount})</button>
+  <button onclick="editBaseline('${c}')">✏️ Rediger baseline</button>
+`;
 }
 
 function setBaseline(c){
- state[c].baseline={...state[c].current};
- localStorage.setItem(STORAGE,JSON.stringify(state));
- renderActions(c);
+  state[c].baseline = {...state[c].current};
+
+  // Initier økter om dei ikkje finst
+  if(!Array.isArray(state[c].sessions)){
+    state[c].sessions = [];
+  }
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+  showSaveMsg(c,"✓ Baseline lagra");
+
+  renderSaveButtons(c);   // 👈 DETTE ER NØKKELEN
+  evaluate(c);
 }
 
-function addSession(c){
- const club=state[c];
- club.sessions.push({
-  date:new Date().toISOString().slice(0,10),
-  data:{...club.current}
- });
- club.current={};
- localStorage.setItem(STORAGE,JSON.stringify(state));
- render();
+function saveSession(c){
+  const success = addSession(c);
+
+  if(success){
+    const sessions = state[c].sessions;
+    if(sessions && sessions.length){
+      state[c].previous = { ...sessions[sessions.length - 1].data };
+    }
+
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+    showSaveMsg(c,"✓ Økt lagra");
+
+      // 🔴 VIKTIG: Oppdater UI
+    renderSaveButtons(c);
+
+    // 🔁 Oppdater knappane (Økter n)
+    document.getElementById(`buttons-${c}`).innerHTML = baselineButtons(c);
+
+    // 🧹 TØM INPUT ETTER LAGRA ØKT  ← HER
+    state[c].current = {};
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+
+    ["side","cons","smash"].forEach(k => {
+      const input = document.querySelector(
+        `#content-${c} input[name="${k}"]`
+      );
+      if(input) input.value = "";
+    });
+
+    renderBagFocus();
+  } else {
+    showSaveMsg(c,"⚠ Fyll inn minst to felt");
+  }
+  renderClubFocus(c);
 }
+
 
 function editBaseline(c){
- if(confirm("Slette baseline?")){
-  state[c].baseline=null;
-  localStorage.setItem(STORAGE,JSON.stringify(state));
-  render();
- }
+  if(confirm("Slette baseline?")){
+    state[c].baseline = null;
+    localStorage.setItem(STORAGE, JSON.stringify(state));
+    render();
+  }
 }
 
-/* ================= ANALYSE ================= */
+function showSaveMsg(c, text){
+  const el = document.getElementById(`save-msg-${c}`);
+  if(!el) return;
 
-function evaluate(c){
- const v=state[c].current,p=PGA[clubType(c)];
- let good=[],bad=[],focus="Vedlikehald";
+  el.textContent = text;
+  el.style.display = "block";
 
- if(v.side!=null)(v.side<=p.side?good:bad).push("Side");
- if(v.cons!=null)(v.cons<=p.cons?good:bad).push("Lengde");
- if(v.smash!=null)(v.smash>=p.smash?good:bad).push("Treff");
-
- if(bad.includes("Side"))focus="Presisjon";
- else if(bad.includes("Lengde"))focus="Lengdekontroll";
- else if(bad.includes("Treff"))focus="Treff";
-
- document.getElementById("eval-"+c).innerHTML=`
-  <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
-  <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
-  <p class="focus">🎯 Fokus: ${focus}</p>
-  <div class="club-focus">
-    <strong>Treningsfokus</strong>
-    <em>${focus}</em><br>
-    <a href="${COACHING[focus]}" target="_blank">Opne øving</a>
-  </div>`;
+  setTimeout(() => {
+    el.textContent = "";
+    el.style.display = "none";
+  }, 2000);
 }
-
-/* ================= MODALS ================= */
 
 function toggle(c){
- const el=document.getElementById("content-"+c);
- const ic=document.getElementById("icon-"+c);
- el.style.display=el.style.display==="block"?"none":"block";
- ic.textContent=el.style.display==="block"?"▼":"▶";
+  const e=document.getElementById("content-"+c);
+  const i=document.getElementById("icon-"+c);
+  e.style.display=e.style.display==="block"?"none":"block";
+  i.textContent=e.style.display==="block"?"▼":"▶";
 }
-function openOnboarding(){onboarding.style.display="flex"}
-function closeOnboarding(){onboarding.style.display="none"}
-function openProfile(){profile.style.display="flex"}
-function closeProfile(){profile.style.display="none"}
+
+/* ===================== ANALYSE ===================== */
+
+function evaluate(c){
+  const v = state[c].current;
+  const b = state[c].baseline;
+  const p = PGA[clubType(c)];
+  let good=[], bad=[], focus="Vedlikehald";
+
+  if(v.side!=null){
+    v.side<=p.side ? good.push("God sidekontroll") : bad.push("For stort sideutslag");
+  }
+  if(v.cons!=null){
+    v.cons<=p.cons ? good.push("Stabil lengde") : bad.push("Ustabil lengde");
+  }
+  if(v.smash!=null){
+    v.smash>=p.smash ? good.push("Reint treff") : bad.push("Ureint treff");
+  }
+
+  if(bad.includes("For stort sideutslag")) focus="Presisjon";
+  else if(bad.includes("Ustabil lengde")) focus="Lengdekontroll";
+  else if(bad.includes("Ureint treff")) focus="Treff";
+
+  let trends = "";
+  if(b){
+    trends += `
+      <strong>Trend mot baseline:</strong><br>
+      Side: ${trend(v.side,b.side,false)}<br>
+      Lengde: ${trend(v.cons,b.cons,false)}<br>
+      Smash: ${trend(v.smash,b.smash,true)}<br>`;
+  }
+  if(state[c].previous){
+    const p0 = state[c].previous;
+    trends += `
+      <br><strong>Sidan førre økt:</strong><br>
+      Side: ${trend(v.side,p0.side,false)}<br>
+      Lengde: ${trend(v.cons,p0.cons,false)}<br>
+      Smash: ${trend(v.smash,p0.smash,true)}<br>`;
+  }
+
+  document.getElementById("eval-"+c).innerHTML = `
+    <p class="good"><strong>Bra:</strong> ${good.join(", ")||"—"}</p>
+    <p class="bad"><strong>Dårleg:</strong> ${bad.join(", ")||"—"}</p>
+    <p class="focus">🎯 Fokus: ${focus}</p>
+    ${trends ? `<div class="small">${trends}</div>` : ""}
+    ${trendVsPrevious(c)}
+    <div class="tip">
+      <strong>🛠 Treningsforslag:</strong><br>
+      <a href="${drillLink(focus)}" target="_blank">👉 Opne øving</a>
+    </div>`;
+    let highlight = "";
+
+    if(focus === "Presisjon") highlight = "Side-consistency er hovudutfordringa.";
+    if(focus === "Lengdekontroll") highlight = "Lengdespredning er hovudutfordringa.";
+    if(focus === "Treff") highlight = "Treffkvalitet er hovudutfordringa.";
+    if(focus === "Vedlikehald") highlight = "Ingen kritiske avvik.";
+}
+
+function renderClubFocus(c){
+  const el = document.getElementById(`focus-${c}`);
+  if(!el) return;
+
+  const v = state[c]?.current;
+  if(!v) return;
+
+  const type = clubType(c);
+  const p = PGA[type];
+
+  let focus = "Vedlikehald";
+  let reason = "Gode og stabile tal.";
+
+  if(v.side != null && v.side > p.side){
+    focus = "Presisjon";
+    reason = "Side-consistency er over målverdien.";
+  } else if(v.cons != null && v.cons > p.cons){
+    focus = "Lengdekontroll";
+    reason = "Lengdespredning er for stor.";
+  } else if(v.smash != null && v.smash < p.smash){
+    focus = "Treff";
+    reason = "Smash factor er under ønskja nivå.";
+  }
+
+  el.innerHTML = `
+    <strong>🎯 Fokus no:</strong>
+    ${focus}<br>
+    <span class="small">${reason}</span>
+  `;
+}
+
+/* ===================== BAG-FOCUS (C1) ===================== */
+
+function calculateBagFocus(){
+  const activeClubs = getActiveClubsSafe();
+  let counts = { Presisjon:0, Lengdekontroll:0, Treff:0 };
+  let clubMap = { Presisjon:[], Lengdekontroll:[], Treff:[] };
+
+  activeClubs.forEach(c => {
+    if(!state[c] || !state[c].baseline || !state[c].current) return;
+
+    const v = state[c].current;
+    const b = state[c].baseline;
+    const type = clubType(c);
+    const p = PGA[type];
+
+    if(v.side != null && b.side != null && v.side > b.side){
+      counts.Presisjon++;
+      clubMap.Presisjon.push(c);
+      return;
+    }
+
+    if(v.cons != null && b.cons != null && v.cons > b.cons){
+      counts.Lengdekontroll++;
+      clubMap.Lengdekontroll.push(c);
+      return;
+    }
+
+    if(v.smash != null && b.smash != null && v.smash < b.smash){
+      counts.Treff++;
+      clubMap.Treff.push(c);
+      return;
+    }
+  });
+
+  let topFocus = null;
+  let max = 0;
+
+  for(const f in counts){
+    if(counts[f] > max){
+      max = counts[f];
+      topFocus = f;
+    }
+  }
+
+  if(!topFocus || max === 0){
+    return null;
+  }
+
+  return {
+    focus: topFocus,
+    count: max,
+    clubs: clubMap[topFocus]
+  };
+}
+
+function trendVsPrevious(c){
+  const prev = state[c].previous;
+  const curr = state[c].current;
+
+  if(!prev || !curr) return "";
+
+  const rules = {
+    side:  "lower",
+    cons:  "lower",
+    smash: "higher"
+  };
+
+  let rows = [];
+
+  Object.keys(rules).forEach(k => {
+    if(curr[k] != null && prev[k] != null){
+      const diff = curr[k] - prev[k];
+      const better =
+        (rules[k] === "lower"  && diff < 0) ||
+        (rules[k] === "higher" && diff > 0);
+
+      rows.push(`
+        <div class="${better ? "diff-up" : "diff-down"}">
+          ${k}: ${prev[k]} → ${curr[k]}
+          ${better ? "▲" : "▼"}
+        </div>
+      `);
+    }
+  });
+
+  if(!rows.length) return "";
+
+  return `
+    <div class="small" style="margin-top:6px;">
+      <strong>Trend mot førre økt:</strong>
+      ${rows.join("")}
+    </div>
+  `;
+}
+
+/* ===================== MODALS ===================== */
+
+function openOnboarding(){document.getElementById("onboarding").style.display="flex";}
+function closeOnboarding(){document.getElementById("onboarding").style.display="none";}
+function openProfile(){document.getElementById("profile").style.display="flex";}
+function closeProfile(){document.getElementById("profile").style.display="none";}
 function openClubs(){
- clubsModal.style.display="flex";
- clubCheckboxes.innerHTML="";
- ALL_CLUBS.forEach(c=>{
-  clubCheckboxes.innerHTML+=`
-   <label><input type="checkbox"
-    ${active.includes(c)?"checked":""}
-    onchange="toggleClub('${c}')"> ${c}</label>`;
- });
+  document.getElementById("clubsModal").style.display="flex";
+  const c=document.getElementById("clubCheckboxes");
+  c.innerHTML="";
+  ALL_CLUBS.forEach(k=>{
+    c.innerHTML+=`
+      <label>
+        <input type="checkbox" ${active.includes(k)?"checked":""}
+        onchange="toggleClub('${k}')"> ${k}
+      </label>`;
+  });
 }
-function closeClubs(){clubsModal.style.display="none"}
-function toggleClub(c){
- active=active.includes(c)?active.filter(x=>x!==c):[...active,c];
+function closeClubs(){document.getElementById("clubsModal").style.display="none";}
+
+function toggleClub(k){
+  active = active.includes(k)
+    ? active.filter(x => x !== k)
+    : [...active, k];
 }
+
 function saveClubs(){
- localStorage.setItem(ACTIVE,JSON.stringify(active));
- closeClubs();render();
+  localStorage.setItem(ACTIVE, JSON.stringify(active));
+  closeClubs();
+  render();
 }
-function openSessions(c){
- sessionsModal.style.display="flex";
- sessionsTitle.textContent=`📚 Økter – ${c}`;
- sessionsList.innerHTML=state[c].sessions.map(
-  (s,i)=>`<div class="small">Økt ${i+1} – ${s.date}</div>`
- ).join("");
-}
-function closeSessions(){sessionsModal.style.display="none"}
+
 function saveProfile(){
- localStorage.setItem(PROFILE,JSON.stringify({
-  hcp:hcp.value,preference:preference.value
- }));
- closeProfile();
+  localStorage.setItem(PROFILE, JSON.stringify({
+    hcp:document.getElementById("hcp").value,
+    preference:document.getElementById("preference").value
+  }));
+  closeProfile();
+}
+
+/* =====================
+   v2.3 – Økter (modal)
+===================== */
+
+function openSessions(c){
+  const modal = document.getElementById("sessionsModal");
+  const title = document.getElementById("sessionsTitle");
+  const list  = document.getElementById("sessionsList");
+
+  if(!modal || !state[c]) return;
+
+  title.textContent = `📚 Økter – ${c}`;
+  list.innerHTML = "";
+
+  const sessions = state[c].sessions || [];
+
+  if(!sessions.length){
+    list.innerHTML = "<p class='small'>Ingen økter lagra enno.</p>";
+  } else {
+    sessions.forEach(s => {
+      list.innerHTML += `
+        <div class="small">
+          Økt ${s.id} – ${s.date}
+        </div>
+      `;
+    });
+  }
+
+  modal.style.display = "flex";
+}
+
+function closeSessions(){
+  const modal = document.getElementById("sessionsModal");
+  if(modal) modal.style.display = "none";
 }
 
 /* INIT */
+initSessionModel();
+
+/* =====================
+   v2.3 – LEGG TIL ØKT
+   Kun logikk (ingen UI)
+===================== */
+
+function canSaveSession(clubId){
+  const club = state[clubId];
+  if(!club || !club.current) return false;
+
+  // Krev minst 2 utfylte parameterar
+  const filled = ["side","cons","smash"].filter(
+    k => club.current[k] != null
+  );
+
+  return filled.length >= 2;
+}
+
+function addSession(clubId){
+  const club = state[clubId];
+  if(!club) return false;
+
+  if(!Array.isArray(club.sessions)){
+    club.sessions = [];
+  }
+
+  if(!canSaveSession(clubId)){
+    return false;
+  }
+
+  const nextId = club.sessions.length + 1;
+
+  club.sessions.push({
+    id: nextId,
+    date: new Date().toISOString().slice(0,10),
+    data: { ...club.current }
+  });
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+  return true;
+}
+
 render();
+renderBagFocus();
+
+// =====================
+// v2.2 – STEG 1 (SAFE)
+// =====================
+
+function getActiveClubsSafe(){
+  const stored = JSON.parse(localStorage.getItem(ACTIVE)) || [];
+
+  // Returner aktive køller i autoritativ rekkefølgje
+  return ALL_CLUBS.filter(club => stored.includes(club));
+}
+
+
+function getClubsWithBaseline(){
+  const active = getActiveClubsSafe();
+  if(!Array.isArray(active)) return [];
+
+  return active.filter(id =>
+    state &&
+    state[id] &&
+    state[id].baseline
+  );
+}
+
+function getClubFocus(clubId){
+  if(!state || !state[clubId] || !state[clubId].current) return null;
+
+  const v = state[clubId].current;
+  const p = PGA[clubType(clubId)];
+  if(!p) return null;
+
+  if(v.side != null && v.side > p.side) return "Presisjon";
+  if(v.cons != null && v.cons > p.cons) return "Lengdekontroll";
+  if(v.smash != null && v.smash < p.smash) return "Treffkvalitet";
+
+  return "Vedlikehald";
+}
+
 </script>
 
 </body>
