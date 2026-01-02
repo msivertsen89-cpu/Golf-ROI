@@ -95,6 +95,23 @@ pre {
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+/* Mobil: prioriter handlingar */
+@media (max-width: 640px){
+  .club-actions{
+    order: -1;
+    margin-bottom: 10px;
+  }
+}
+/* =====================
+   C2.2 – Mobil: større knappar
+===================== */
+@media (max-width: 640px){
+  button{
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+}
+
 </style>
 </head>
 
@@ -401,7 +418,10 @@ function render(){
             ${field(c,"smash","Smash factor","Treffkvalitet",0.01)}
           </div>
 
-          ${baselineButtons(c)}
+          <div class="club-actions">
+            ${baselineButtons(c)}
+          </div>
+
           <div id="eval-${c}"></div>
         </div>
       </div>
@@ -410,6 +430,7 @@ function render(){
 
   wrap.innerHTML = html;
   localStorage.setItem(STORAGE, JSON.stringify(state));
+  renderBagFocus();
 }
 
 function field(c,k,l,h,s=1){
@@ -562,6 +583,82 @@ function evaluate(c){
       <strong>🛠 Treningsforslag:</strong><br>
       <a href="${drillLink(focus)}" target="_blank">👉 Opne øving</a>
     </div>`;
+}
+
+/* ===================== BAG-FOCUS (C1) ===================== */
+
+function calculateBagFocus(){
+  const activeClubs = getActiveClubsSafe();
+  let counts = { Presisjon:0, Lengdekontroll:0, Treff:0 };
+  let clubMap = { Presisjon:[], Lengdekontroll:[], Treff:[] };
+
+  activeClubs.forEach(c => {
+    if(!state[c] || !state[c].baseline || !state[c].current) return;
+
+    const v = state[c].current;
+    const b = state[c].baseline;
+    const type = clubType(c);
+    const p = PGA[type];
+
+    if(v.side != null && b.side != null && v.side > b.side){
+      counts.Presisjon++;
+      clubMap.Presisjon.push(c);
+      return;
+    }
+
+    if(v.cons != null && b.cons != null && v.cons > b.cons){
+      counts.Lengdekontroll++;
+      clubMap.Lengdekontroll.push(c);
+      return;
+    }
+
+    if(v.smash != null && b.smash != null && v.smash < b.smash){
+      counts.Treff++;
+      clubMap.Treff.push(c);
+      return;
+    }
+  });
+
+  let topFocus = null;
+  let max = 0;
+
+  for(const f in counts){
+    if(counts[f] > max){
+      max = counts[f];
+      topFocus = f;
+    }
+  }
+
+  if(!topFocus || max === 0){
+    return null;
+  }
+
+  return {
+    focus: topFocus,
+    count: max,
+    clubs: clubMap[topFocus]
+  };
+}
+
+function renderBagFocus(){
+  const card = document.getElementById("bagFocusCard");
+  const result = calculateBagFocus();
+
+  if(!result){
+    card.style.display = "none";
+    return;
+  }
+
+  card.style.display = "block";
+  card.innerHTML = `
+    <h3>🎯 Hovudfokus no: ${result.focus}</h3>
+    <p class="small">
+      Basert på ${result.count} køller med avvik frå baseline
+    </p>
+    <p>
+      👉 Mest påverka: <strong>${result.clubs.join(", ")}</strong>
+    </p>
+  `;
 }
 
 function trendVsPrevious(c){
