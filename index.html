@@ -520,55 +520,84 @@ function baselineButtons(c){
 }
 
 function setBaseline(c){
-  state[c].baseline = {...state[c].current};
+  const club = state[c];
+  if(!club) return;
 
-  // Initier økter om dei ikkje finst
-  if(!Array.isArray(state[c].sessions)){
-    state[c].sessions = [];
+  // Lagre baseline frå current
+  club.baseline = { ...club.current };
+
+  // Sikre sessions-array (skal vere tom ved baseline)
+  if(!Array.isArray(club.sessions)){
+    club.sessions = [];
   }
 
-  localStorage.setItem(STORAGE, JSON.stringify(state));
-  showSaveMsg(c,"✓ Baseline lagra");
+  // TØM current – baseline er ferdig
+  club.current = {};
 
-  renderSaveButtons(c);   // 👈 DETTE ER NØKKELEN
+  // Lagre
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  // Oppdater UI
+  renderSaveButtons(c);
   evaluate(c);
+  renderBagFocus();
+
+  // Tøm input-felt visuelt
+  ["side","cons","smash"].forEach(k => {
+    const input = document.querySelector(
+      `#content-${c} input[name="${k}"]`
+    );
+    if(input) input.value = "";
+  });
 }
 
 function saveSession(c){
-  const success = addSession(c);
+  const club = state[c];
+  if(!club) return;
 
-  if(success){
-    const sessions = state[c].sessions;
-    if(sessions && sessions.length){
-      state[c].previous = { ...sessions[sessions.length - 1].data };
-    }
-
-    localStorage.setItem(STORAGE, JSON.stringify(state));
-    showSaveMsg(c,"✓ Økt lagra");
-
-      // 🔴 VIKTIG: Oppdater UI
-    renderSaveButtons(c);
-
-    // 🔁 Oppdater knappane (Økter n)
-    document.getElementById(`buttons-${c}`).innerHTML = baselineButtons(c);
-
-    // 🧹 TØM INPUT ETTER LAGRA ØKT  ← HER
-    state[c].current = {};
-    localStorage.setItem(STORAGE, JSON.stringify(state));
-
-    ["side","cons","smash"].forEach(k => {
-      const input = document.querySelector(
-        `#content-${c} input[name="${k}"]`
-      );
-      if(input) input.value = "";
-    });
-
-    renderBagFocus();
-  } else {
-    showSaveMsg(c,"⚠ Fyll inn minst to felt");
+  // Krev minst 2 felt
+  const filled = ["side","cons","smash"].filter(
+    k => club.current[k] != null
+  );
+  if(filled.length < 2){
+    alert("Fyll inn minst to felt før du lagrar økta.");
+    return;
   }
-  renderClubFocus(c);
+
+  // Sikre sessions-array
+  if(!Array.isArray(club.sessions)){
+    club.sessions = [];
+  }
+
+  // Lagre økt
+  club.sessions.push({
+    date: new Date().toISOString().slice(0,10),
+    data: { ...club.current }
+  });
+
+  // Lagre previous for trend
+  club.previous = { ...club.current };
+
+  // TØM DATA
+  club.current = {};
+
+  // Lagre
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  // Oppdater UI
+  renderSaveButtons(c);
+  evaluate(c);
+  renderBagFocus();
+
+  // TØM INPUT-FELT VISUELT
+  ["side","cons","smash"].forEach(k => {
+    const input = document.querySelector(
+      `#content-${c} input[name="${k}"]`
+    );
+    if(input) input.value = "";
+  });
 }
+
 
 
 function editBaseline(c){
@@ -896,6 +925,7 @@ function addSession(clubId){
     id: nextId,
     date: new Date().toISOString().slice(0,10),
     data: { ...club.current }
+
   });
 
   localStorage.setItem(STORAGE, JSON.stringify(state));
