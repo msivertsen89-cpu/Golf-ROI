@@ -210,6 +210,22 @@ pre {
   </div>
 </div>
 
+<!-- SESSION ACTIONS MODAL -->
+<div class="overlay" id="sessionActionsModal">
+  <div class="modal">
+    <h3 id="sessionActionsTitle">Økt</h3>
+
+    <div style="margin-top:12px;">
+      <button onclick="confirmEditSession()">✏️ Rediger økt</button>
+      <button onclick="confirmDeleteSession()">🗑 Slett økt</button>
+    </div>
+
+    <div style="margin-top:12px;">
+      <button onclick="closeSessionActions()">Lukk</button>
+    </div>
+  </div>
+</div>
+
 <script>
 
 /* ===================== KONFIG ===================== */
@@ -328,6 +344,11 @@ function drillLink(f){
 let state = JSON.parse(localStorage.getItem(STORAGE)) || {};
 let active = JSON.parse(localStorage.getItem(ACTIVE)) || [];
 
+// UI-state (global)
+let openClubId = null;
+let selectedSessionClub = null;
+let selectedSessionIndex = null;
+
 /* =====================
    v2.3 – DATAMODELL
    Initialiser økter trygt
@@ -359,6 +380,19 @@ function initSessionModel(){
 }
 
 /* ===================== TREND HELPERS ===================== */
+
+function formatDelta(curr, prev, rule){
+  if(curr == null || prev == null) return "—";
+
+  const diff = curr - prev;
+  if(diff === 0) return "→";
+
+  const better =
+    (rule === "lower"  && diff < 0) ||
+    (rule === "higher" && diff > 0);
+
+  return better ? "↑" : "↓";
+}
 
 function getCurrentOrLastSession(c){
   const club = state[c];
@@ -491,6 +525,14 @@ function render(){
 
         <div class="accordion-content" id="content-${c}">
           <div class="grid">
+          <div class="field">
+            <label>Dato for økt</label>
+            <div class="hint">Når vart økta faktisk gjennomført</div>
+            <input
+              type="date"
+              id="date-${c}"
+              value="${new Date().toISOString().slice(0,10)}">
+          </div>
             ${field(c,"side","Side-consistency (m)","Side-til-side utslag")}
             ${field(c,"cons","Length consistency (m)","Lengdespredning")}
             ${field(c,"smash","Smash factor","Treffkvalitet",0.01)}
@@ -498,6 +540,7 @@ function render(){
 
           <div id="save-${c}"></div>
           <div id="eval-${c}"></div>
+          <div id="history-${c}" class="small"></div>
         </div>
       </div>
     `;
@@ -505,6 +548,9 @@ function render(){
     renderSaveButtons(c);
     evaluate(c);
   });
+  if(openClubId){
+    setTimeout(() => toggle(openClubId), 0);
+  }
 
   localStorage.setItem(STORAGE, JSON.stringify(state));
 }
@@ -624,10 +670,15 @@ function saveSession(c){
   }
 
   // Lagre økt
+  const dateInput = document.getElementById(`date-${c}`);
+  const performedDate = dateInput?.value || new Date().toISOString().slice(0,10);
+
   club.sessions.push({
-    date: new Date().toISOString().slice(0,10),
+    performedDate,
+    savedDate: new Date().toISOString().slice(0,10),
     data: { ...club.current }
   });
+
 
   // Lagre previous for trend
   club.lastSession = { ...club.current };
@@ -679,13 +730,57 @@ function showSaveMsg(c, text){
 }
 
 function toggle(c){
-  const e=document.getElementById("content-"+c);
-  const i=document.getElementById("icon-"+c);
-  e.style.display=e.style.display==="block"?"none":"block";
-  i.textContent=e.style.display==="block"?"▼":"▶";
+  const e = document.getElementById("content-"+c);
+  const i = document.getElementById("icon-"+c);
+
+  const isOpen = e.style.display === "block";
+  e.style.display = isOpen ? "none" : "block";
+  i.textContent = isOpen ? "▶" : "▼";
+
+  openClubId = isOpen ? null : c;
 }
 
+
 /* ===================== ANALYSE ===================== */
+
+function renderHistory(c){
+  const el = document.getElementById(`history-${c}`);
+  if(!el) return;
+
+  const club = state[c];
+  if(!club || !club.sessions || club.sessions.length < 2){
+    el.innerHTML = "";
+    return;
+  }
+
+  const sessions = [...club.sessions].sort((a, b) =>
+    (a.performedDate || a.date).localeCompare(b.performedDate || b.date)
+  );
+
+  const rows = [];
+
+  for(let i = 1; i < sessions.length; i++){
+    const prev = sessions[i - 1].data;
+    const curr = sessions[i].data;
+    const date = sessions[i].performedDate || sessions[i].date;
+
+    rows.push(`
+      <div>
+        <strong>${date}</strong><br>
+        Side: ${formatDelta(curr.side, prev.side, "lower")} |
+        Lengde: ${formatDelta(curr.cons, prev.cons, "lower")} |
+        Smash: ${formatDelta(curr.smash, prev.smash, "higher")}
+      </div>
+    `);
+  }
+
+  el.innerHTML = `
+    <div style="margin-top:8px">
+      <strong>📈 Historikk</strong>
+      ${rows.join("")}
+    </div>
+  `;
+}
 
 function evaluate(c){
   const v =
@@ -740,12 +835,16 @@ function evaluate(c){
       <strong>🛠 Treningsforslag:</strong><br>
       <a href="${drillLink(focus)}" target="_blank">👉 Opne øving</a>
     </div>`;
-    let highlight = "";
 
-    if(focus === "Presisjon") highlight = "Side-consistency er hovudutfordringa.";
-    if(focus === "Lengdekontroll") highlight = "Lengdespredning er hovudutfordringa.";
-    if(focus === "Treff") highlight = "Treffkvalitet er hovudutfordringa.";
-    if(focus === "Vedlikehald") highlight = "Ingen kritiske avvik.";
+  renderHistory(c);
+
+  let highlight = "";
+
+  if(focus === "Presisjon") highlight = "Side-consistency er hovudutfordringa.";
+  if(focus === "Lengdekontroll") highlight = "Lengdespredning er hovudutfordringa.";
+  if(focus === "Treff") highlight = "Treffkvalitet er hovudutfordringa.";
+  if(focus === "Vedlikehald") highlight = "Ingen kritiske avvik.";
+
 }
 
 function renderClubFocus(c){
@@ -928,15 +1027,21 @@ function openSessions(c){
   title.textContent = `📚 Økter – ${c}`;
   list.innerHTML = "";
 
-  const sessions = state[c].sessions || [];
+  const rawSessions = state[c].sessions || [];
 
-  if(!sessions.length){
+  if(!rawSessions.length){
     list.innerHTML = "<p class='small'>Ingen økter lagra enno.</p>";
   } else {
-    sessions.forEach(s => {
+    // Sorter kun for visning (ikkje endre state)
+    const sessions = [...rawSessions].sort((a, b) =>
+      (a.performedDate || a.date).localeCompare(b.performedDate || b.date)
+    );
+
+    sessions.forEach((s, index) => {
       list.innerHTML += `
-        <div class="small">
-          Økt ${s.id} – ${s.date}
+        <div class="small" style="cursor:pointer"
+             onclick="openSessionActions('${c}', ${index})">
+          Økt ${index + 1} – ${s.performedDate || s.date}
         </div>
       `;
     });
@@ -945,9 +1050,90 @@ function openSessions(c){
   modal.style.display = "flex";
 }
 
+
+function openSessionActions(clubId, sessionIndex){
+  openClubId = clubId;
+
+  selectedSessionClub = clubId;
+  selectedSessionIndex = sessionIndex;
+
+  const s = state[clubId].sessions[sessionIndex];
+  document.getElementById("sessionActionsTitle").textContent =
+    `Økt ${sessionIndex + 1} – ${s.date}`;
+
+  document.getElementById("sessionActionsModal").style.display = "flex";
+}
+
+function loadSessionForEdit(clubId, sessionIndex){
+  const club = state[clubId];
+  const session = club.sessions[sessionIndex];
+  if(!session) return;
+
+  // Last data inn i input (current)
+  club.current = { ...session.data };
+
+  // Fjern økta midlertidig (blir erstatta ved lagring)
+  club.sessions.splice(sessionIndex, 1);
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  closeSessions();
+  render();
+}
+
+function deleteSession(clubId, sessionIndex){
+  const club = state[clubId];
+  if(!club || !club.sessions) return;
+
+  club.sessions.splice(sessionIndex, 1);
+
+  // Oppdater lastSession og previous
+  if(club.sessions.length){
+    club.lastSession = club.sessions[club.sessions.length - 1].data;
+    club.previous =
+      club.sessions.length > 1
+        ? club.sessions[club.sessions.length - 2].data
+        : null;
+  } else {
+    club.lastSession = null;
+    club.previous = null;
+  }
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  closeSessions();
+  render();
+}
+
 function closeSessions(){
   const modal = document.getElementById("sessionsModal");
   if(modal) modal.style.display = "none";
+}
+
+/* === STEG 4: session action buttons === */
+
+function confirmEditSession(){
+  if(selectedSessionClub == null) return;
+
+  loadSessionForEdit(selectedSessionClub, selectedSessionIndex);
+  closeSessionActions();
+}
+
+function confirmDeleteSession(){
+  if(selectedSessionClub == null) return;
+
+  if(!confirm("Er du sikker på at du vil slette denne økta?")){
+    return;
+  }
+
+  deleteSession(selectedSessionClub, selectedSessionIndex);
+  closeSessionActions();
+}
+
+function closeSessionActions(){
+  document.getElementById("sessionActionsModal").style.display = "none";
+  selectedSessionClub = null;
+  selectedSessionIndex = null;
 }
 
 /* INIT */
