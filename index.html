@@ -142,6 +142,7 @@ pre {
   <button onclick="openOnboarding()">🚀 Kom i gang</button>
   <button onclick="openProfile()">⚙️ Profil</button>
   <button onclick="openClubs()">🏌️ Køller</button>
+  <button onclick="resetAllData()">♻️ Nullstill alt</button>
 </div>
 
 <!-- 🟢 Samla fokus basert på baseline -->
@@ -359,13 +360,41 @@ function initSessionModel(){
 
 /* ===================== TREND HELPERS ===================== */
 
+function getCurrentOrLastSession(c){
+  const club = state[c];
+  if(!club) return null;
+
+  // 1️⃣ Bruk input dersom brukaren skriv
+  if(club.current && Object.keys(club.current).length){
+    return club.current;
+  }
+
+  // 2️⃣ Elles: bruk siste lagra økt
+  if(Array.isArray(club.sessions) && club.sessions.length){
+    return club.sessions[club.sessions.length - 1].data;
+  }
+
+  return null;
+}
+
 function trend(current, reference, higherIsBetter){
+  // 🚫 Manglar verdiar → ingen trend
+  if(current == null || reference == null){
+    return "—";
+  }
+
   const diff = current - reference;
+  if(isNaN(diff)){
+    return "—";
+  }
+
   const good = higherIsBetter ? diff >= 0 : diff <= 0;
   const arrow = diff > 0 ? "↑" : diff < 0 ? "↓" : "→";
   const cls = good ? "diff-up" : "diff-down";
+
   return `<span class="${cls}">${arrow} ${Math.abs(diff).toFixed(2)}</span>`;
 }
+
 
 /* =====================
    v2.2 – STEG 4: UI-RENDER
@@ -404,6 +433,31 @@ function renderBagFocus(){
 /* ===================== RENDER ===================== */
 
 const wrap = document.getElementById("clubs");
+
+function resetAllData(){
+  if(!confirm("Dette vil slette alle baseline og økter. Er du sikker?")){
+    return;
+  }
+
+  const activeClubs = getActiveClubsSafe();
+
+  activeClubs.forEach(c => {
+    if(!state[c]) return;
+
+    state[c].baseline = null;
+    state[c].sessions = [];
+    state[c].lastSession = null;
+    state[c].previous = null;
+    state[c].current = {};
+  });
+
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  render();
+  renderBagFocus();
+
+  alert("All treningsdata er nullstilt.");
+}
 
 function render(){
   wrap.innerHTML = "";
@@ -576,10 +630,13 @@ function saveSession(c){
   });
 
   // Lagre previous for trend
-  club.previous = { ...club.current };
+  club.lastSession = { ...club.current };
+  club.previous = club.sessions.length > 1
+    ? club.sessions[club.sessions.length - 2].data
+    : null;
 
-  // TØM DATA
   club.current = {};
+
 
   // Lagre
   localStorage.setItem(STORAGE, JSON.stringify(state));
@@ -631,7 +688,13 @@ function toggle(c){
 /* ===================== ANALYSE ===================== */
 
 function evaluate(c){
-  const v = state[c].current;
+  const v =
+    state[c].current && Object.keys(state[c].current).length
+      ? state[c].current
+      : state[c].lastSession;
+
+  if(!v) return;
+
   const b = state[c].baseline;
   const p = PGA[clubType(c)];
   let good=[], bad=[], focus="Vedlikehald";
