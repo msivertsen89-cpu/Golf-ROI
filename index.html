@@ -372,7 +372,57 @@ const COACHING_TEXT = {
 
 const PDF_TEXT = {
 
-  intermediate: { // DEFAULT (16–29)
+  elite: { // 0–8
+    summary:
+      "Vidare utvikling krev presist og disiplinert treningsarbeid.",
+
+    hovudfokus:
+      "Dette området avgrensar no scoring-potensialet ditt. Vidare framgang krev målretta og strukturert trening.",
+
+    tolkning_under:
+      "Variasjonen ligg over ønskja nivå og reduserer effektiviteten i spel.",
+
+    tolkning_over:
+      "Denne kølla er stabil og bør berre vedlikehaldast.",
+
+    treningsraad: [
+      "Tren med klart definert mål for kvar økt",
+      "Prioriter kvalitet framfor volum",
+      "Evaluer utvikling over fleire økter"
+    ],
+
+    unngaa: [
+      "Ustrukturert trening",
+      "Justeringar utan datagrunnlag"
+    ]
+  },
+
+  advanced: { // 9–15
+    summary:
+      "Klar flaskehals identifisert – riktig prioritering gir rask framgang.",
+
+    hovudfokus:
+      "Presisjon er no den tydelegaste avgrensinga. Vidare framgang krev fokus på startretning og treffpunkt.",
+
+    tolkning_under:
+      "Lengdepotensialet er til stades, men side-spreiing reduserer utteljinga.",
+
+    tolkning_over:
+      "Denne kølla leverer stabilt og krev berre vedlikehald.",
+
+    treningsraad: [
+      "Ha eitt hovudfokus per økt",
+      "Unngå å evaluere enkeltøkter isolert",
+      "La gode køller vere i fred"
+    ],
+
+    unngaa: [
+      "Å jage lengde når presisjon er hovudutfordringa",
+      "For mange fokusområde samtidig"
+    ]
+  },
+
+  intermediate: { // 16–29 (DEFAULT)
     summary:
       "Strukturert trening på eitt område vil gi mest effekt no.",
 
@@ -394,6 +444,31 @@ const PDF_TEXT = {
     unngaa: [
       "Å bytte fokus midt i økta",
       "Å overanalysere enkeltøkter"
+    ]
+  },
+
+  beginner: { // 30–54
+    summary:
+      "Enklare og meir lik trening vil gi betre kontroll.",
+
+    hovudfokus:
+      "Målet no er å få fleire slag som kjennest like, slik at ballen oftare hamnar der du siktar.",
+
+    tolkning_under:
+      "Denne kølla er litt ujamn, men små justeringar kan gi betre kontroll.",
+
+    tolkning_over:
+      "Denne kølla fungerer greitt og treng inga endring no.",
+
+    treningsraad: [
+      "Bruk same oppstilling på alle slag",
+      "Tren roleg tempo",
+      "Fokuser på gode treff, ikkje perfekte slag"
+    ],
+
+    unngaa: [
+      "Tekniske detaljar",
+      "Å prøve å endre alt på ein gong"
     ]
   }
 
@@ -1356,6 +1431,13 @@ function renderReportHTML(data){
         <li><strong>Økt 1:</strong> Hovudfokus – ${coaching?.title || "valfritt fokus"}</li>
         <li><strong>Økt 2:</strong> Stabilisering av same fokus</li>
         <li><strong>Økt 3:</strong> Vedlikehald av køller som fungerer</li>
+      </ul>
+      <ul class="small">
+        ${
+          (PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).treningsraad
+            .map(t => `<li>${t}</li>`)
+            .join("")
+        }
       </ul>
     </div>
   `;
