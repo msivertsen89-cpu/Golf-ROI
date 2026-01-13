@@ -113,59 +113,88 @@ canvas {
   border-top: 1px solid #ccc;
 }
 
-@media print {
-
-  /* Skjul ALT */
-  body * {
-    display: none !important;
-  }
-
-  /* Vis berre print-root */
-  #printRoot,
-  #printRoot * {
-    display: block !important;
-  }
-
-  #printRoot {
-    position: static;
-    padding: 24px;
-  }
-
-  /* Éi kølle per side */
-  .report-club {
-    page-break-inside: avoid;
-    break-inside: avoid;
-
-    /* Viktig: lås høgda til sida */
-    min-height: calc(100vh - 40mm);
-    box-sizing: border-box;
-  }
-
-  .report-club:first-of-type {
-    page-break-before: auto;
-    break-before: auto;
-  }
-
-  @page {
-    margin: 20mm;
-  }
-
-    @page {
-    margin: 20mm;
-  }
-
-  #printRoot > *:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-}
-
 .page-break {
   height: 0;
   overflow: hidden;
   page-break-before: always;
   break-before: page;
+}
 
+@media print {
+
+  /* ====== GRUNNINNSTILLING ====== */
+  html, body {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-size: 13px;
+    color: #000;
+  }
+
+  /* ====== SKJUL ALT SOM IKKJE ER RAPPORT ====== */
+  body > * {
+    display: none !important;
+  }
+
+  /* ====== VIS RAPPORTEN ====== */
+  #reportModal,
+  #reportModal * {
+    display: block !important;
+  }
+
+  /* Fjern modal-oppleving */
+  .overlay {
+    position: static !important;
+    background: none !important;
+  }
+
+  .modal {
+    position: static !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* ====== RAPPORT-LAYOUT ====== */
+  .report-root {
+    padding: 0;
+  }
+
+  .report-section {
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+  }
+
+  .report-divider {
+    border-top: 1px solid #ccc;
+    margin: 14px 0;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* ====== LISTAR OG TEKST ====== */
+  ul {
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  /* ====== SIDEOPPSETT ====== */
+  @page {
+    margin: 20mm;
+  }
 }
 
 </style>
@@ -924,6 +953,10 @@ function today(){
   return new Date().toISOString().slice(0,10);
 }
 
+function safeId(str){
+  return str.replace(/[^a-z0-9]/gi, "");
+}
+
 /* =====================
    MODALS / CLUBS
 ===================== */
@@ -990,6 +1023,10 @@ function openReportClubModal(){
 
 function closeReportClubModal(){
   document.getElementById("reportClubModal").style.display = "none";
+}
+
+function closeReportPreview(){
+  document.getElementById("reportModal").style.display = "none";
 }
 
 function toggleReportClub(c){
@@ -1109,15 +1146,6 @@ function openReportPreview(clubsFilter){
 
   el.innerHTML = renderReportHTML(data);
   document.getElementById("reportModal").style.display = "flex";
-
-  // 🎨 Teikn grafar ETTER at HTML er på plass
-  setTimeout(() => {
-    drawReportGraphs(data);
-  }, 0);
-}
-
-function closeReportPreview(){
-  document.getElementById("reportModal").style.display = "none";
 }
 
 /* =========================
@@ -1127,43 +1155,55 @@ function printReport(clubsFilter){
   const data = buildReportData(clubsFilter);
   const root = document.getElementById("printRoot");
 
-  // 1. Bygg rapporten i print-root
   root.innerHTML = renderReportHTML(data);
   root.style.display = "block";
 
-  // 2. Teikn grafar etter at DOM er klar
-  setTimeout(() => {
-    drawReportGraphs(data);
+  // Vent på DOM + canvas-render
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
 
-    // 3. Print
-    window.print();
+      drawReportGraphs(data);
 
-    // 4. Rydd opp
-    root.innerHTML = "";
-    root.style.display = "none";
-  }, 0);
+      requestAnimationFrame(() => {
+        window.print();
+
+        // Rydd opp
+        root.innerHTML = "";
+        root.style.display = "none";
+      });
+
+    });
+  });
+}
+
+function printReport(){
+  window.print();
 }
 
 function renderReportHTML(data){
   let html = `
+    <div class="report-section">
+      <h2>📄 Treningsoppsummering – Golf ROI</h2>
 
-    <div class="report-section report-intro">
-      <h2>📄 Treningsrapport – Golf ROI</h2>
-      <p><strong>Dato:</strong> ${data.meta.generatedAt}</p>
-      <p><strong>Referanse:</strong> ${data.meta.reference}</p>
+      <p class="small">
+        <strong>Periode:</strong> ${data.meta.generatedAt}<br>
+        <strong>Referanse:</strong> ${data.meta.reference}
+      </p>
     </div>
   `;
 
-  /* 🎯 HOVUDFOKUS */
+  /* =====================
+     🎯 SAMANDRAG / HOVUDFOKUS
+  ===================== */
   const focusKey = data.bagFocus?.focus;
   const coaching = COACHING_TEXT[focusKey];
 
   html += `
     <div class="report-section">
-      <h3>🎯 Hovudfokus</h3>
+      <h3>🎯 Hovudfokus for treninga</h3>
 
       <p class="focus">
-        ${coaching?.title || "Ingen klar prioritet"}
+        ${coaching?.title || "Ingen klar hovudprioritet"}
       </p>
 
       ${
@@ -1174,7 +1214,7 @@ function renderReportHTML(data){
           `
           : `
             <p class="small">
-              Ikkje nok data til å gi ein tydeleg hovudprioritet.
+              Ikkje nok data til å gi ei tydeleg anbefaling.
             </p>
           `
       }
@@ -1188,66 +1228,168 @@ function renderReportHTML(data){
     <div class="report-divider"></div>
   `;
 
-  /* 🏌️ KØLLER – ÉI KØLLE = ÉI SIDE (styrt av CSS) */
-  data.clubs.forEach((c, index) => {
-
-    // 🔹 Sidebryt FØR alle unntatt første
-    if (index > 0) {
-      html += `<div class="page-break"></div>`;
-    }
+  /* =====================
+     🏌️ ANALYSE PER KØLLE
+  ===================== */
+  data.clubs.forEach(c => {
+    const e = c.evaluation;
 
     html += `
-      <div class="report-section report-club">
-        <h3>${c.club}</h3>
+      <div class="report-section">
+        <h3>🏌️ ${c.club}</h3>
 
         <p class="small">
-          Økter: ${c.sessionsCount}
+          Økter i perioden: ${c.sessionsCount}
         </p>
 
         <p>
-          <strong>Fokus:</strong> ${c.evaluation?.focus || "—"}
+          <strong>Status:</strong>
+          ${
+            e?.bad?.length
+              ? "<span class='bad'>Under baseline</span>"
+              : "<span class='good'>På eller over baseline</span>"
+          }
+        </p>
+
+        <p>
+          <strong>Primært treningsfokus:</strong>
+          <span class="focus">${e?.focus || "Vedlikehald"}</span>
         </p>
 
         <div class="small">
-          <strong>Bra:</strong> ${(c.evaluation?.good || []).join(", ") || "—"}<br>
-          <strong>Dårleg:</strong> ${(c.evaluation?.bad || []).join(", ") || "—"}
+          <strong>Bra:</strong> ${(e?.good || []).join(", ") || "—"}<br>
+          <strong>Dårleg:</strong> ${(e?.bad || []).join(", ") || "—"}
         </div>
 
-        <div style="margin:12px 0">
-          <canvas id="report-${c.club}-side" width="320" height="110"></canvas>
-          <canvas id="report-${c.club}-cons" width="320" height="110"></canvas>
-          <canvas id="report-${c.club}-smash" width="320" height="110"></canvas>
-        </div>
+        <p class="small" style="margin-top:8px;">
+          ${e?.focus === "Vedlikehald"
+            ? "Denne kølla fungerer stabilt og bør vedlikehaldast."
+            : "Denne kølla bør prioriterast i treninga."
+          }
+        </p>
       </div>
     `;
   });
 
+  /* =====================
+     📈 TRENDOPPSUMMERING
+  ===================== */
+  html += `
+    <div class="report-section">
+      <h3>📈 Trendoppsummering</h3>
+
+      <p class="small">
+        Denne vurderinga er basert på samanlikning mellom baseline
+        og dei siste øktene på tvers av køller.
+      </p>
+
+      <ul class="small">
+        <li>Presisjon: vurdert per kølle basert på side-consistency</li>
+        <li>Lengdekontroll: vurdert per kølle basert på lengdevariasjon</li>
+        <li>Treffkvalitet: vurdert per kølle basert på smash factor</li>
+      </ul>
+
+      <p class="small">
+        Bruk trendane som rettesnor over fleire økter,
+        ikkje som fasit frå ei enkelt økt.
+      </p>
+    </div>
+  `;
+
+  /* =====================
+     🛠 TRENINGSPLAN
+  ===================== */
+  html += `
+    <div class="report-section">
+      <h3>🛠 Anbefalt treningsplan</h3>
+
+      <p class="small">
+        Følg planen i 2–3 økter før ny evaluering.
+      </p>
+
+      <ul class="small">
+        <li><strong>Økt 1:</strong> Hovudfokus – ${coaching?.title || "valfritt fokus"}</li>
+        <li><strong>Økt 2:</strong> Stabilisering av same fokus</li>
+        <li><strong>Økt 3:</strong> Vedlikehald av køller som fungerer</li>
+      </ul>
+    </div>
+  `;
 
   return html;
 }
 
 function drawReportGraphs(data){
   data.clubs.forEach(c => {
-    drawMiniReportGraph(
-      `report-${c.club}-side`,
-      c.graphs.side,
-      c.baseline?.side,
-      "side"
-    );
 
-    drawMiniReportGraph(
-      `report-${c.club}-cons`,
-      c.graphs.cons,
-      c.baseline?.cons,
-      "cons"
-    );
+    const clubId = safeId(c.club);
 
-    drawMiniReportGraph(
-      `report-${c.club}-smash`,
-      c.graphs.smash,
-      c.baseline?.smash,
-      "smash"
-    );
+    [
+      { key: "side" },
+      { key: "cons" },
+      { key: "smash" }
+    ].forEach(({ key }) => {
+
+      const canvas = document.getElementById(`report-${clubId}-${key}`);
+      if(!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const series = (c.graphs[key] || []).filter(d => d.value != null);
+      if(series.length === 0) return;
+
+      const baseline = c.baseline?.[key];
+
+      const pad = 30;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const values = series.map(d => d.value);
+      if(baseline != null) values.push(baseline);
+
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      if(min === max){ min -= 1; max += 1; }
+
+      const xStep = (w - pad * 2) / (series.length - 1 || 1);
+      const yScale = (h - pad * 2) / (max - min);
+
+      // Baseline
+      if(baseline != null){
+        const yBase = h - pad - (baseline - min) * yScale;
+        ctx.setLineDash([4,4]);
+        ctx.strokeStyle = "#c62828";
+        ctx.beginPath();
+        ctx.moveTo(pad, yBase);
+        ctx.lineTo(w - pad, yBase);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Line
+      ctx.strokeStyle = "#1976d2";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      series.forEach((d,i)=>{
+        const x = pad + i * xStep;
+        const y = h - pad - (d.value - min) * yScale;
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      });
+
+      ctx.stroke();
+
+      // Points
+      ctx.fillStyle = "#1976d2";
+      series.forEach((d,i)=>{
+        const x = pad + i * xStep;
+        const y = h - pad - (d.value - min) * yScale;
+        ctx.beginPath();
+        ctx.arc(x,y,3,0,Math.PI*2);
+        ctx.fill();
+      });
+
+    });
   });
 }
 
@@ -1508,7 +1650,7 @@ function resetAllData(){
 
     <div style="margin-top:12px;">
       <button onclick="closeReportPreview()">Lukk</button>
-      <button onclick="printReport(selectedReportClubs)">📄 Lag PDF</button>
+      <button onclick="printReport()">📄 Lag PDF</button>
     </div>
   </div>
 </div>
@@ -1526,8 +1668,6 @@ function resetAllData(){
     </div>
   </div>
 </div>
-
-<div id="printRoot" style="display:none"></div>
 
 </body>
 </html>
