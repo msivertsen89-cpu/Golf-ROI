@@ -196,6 +196,12 @@ canvas {
     margin: 20mm;
   }
 }
+/* ====== PDF / RAPPORT – MOBILTEKST ====== */
+.report-root pre {
+  white-space: pre-wrap;      /* Bevar linjeskift, men tillat wrapping */
+  word-wrap: break-word;      /* Bryt lange ord */
+  overflow-wrap: break-word;  /* Moderne standard */
+}
 
 </style>
 </head>
@@ -262,8 +268,7 @@ canvas {
 /* =========================================================
    Golf ROI – Treningsanalyse
    ---------------------------------------------------------
-   Versjon: v2.6 (LOCKED)
-   Status : Stabil, rydda state-modell og grafarkitektur
+   // Versjon: v2.9 (PDF v1 – tekstbasert, dynamisk språk per handicap)
 
    HOVUDPRINSIPP:
    1. Éin autoritativ state (state + active)
