@@ -370,6 +370,48 @@ const COACHING_TEXT = {
     }
 };
 
+const PDF_TEXT = {
+
+  intermediate: { // DEFAULT (16–29)
+    summary:
+      "Strukturert trening på eitt område vil gi mest effekt no.",
+
+    hovudfokus:
+      "Fleire køller viser same type utfordring. Ved å prioritere dette området kan du få framgang på tvers av køller.",
+
+    tolkning_under:
+      "Variabel prestasjon gjer resultatet mindre forutsigbart.",
+
+    tolkning_over:
+      "Denne kølla fungerer stabilt og bør berre vedlikehaldast.",
+
+    treningsraad: [
+      "Fokuser på éin ferdigheit per økt",
+      "Tren roleg og repeterbart",
+      "Vurder utvikling over fleire økter"
+    ],
+
+    unngaa: [
+      "Å bytte fokus midt i økta",
+      "Å overanalysere enkeltøkter"
+    ]
+  }
+
+};
+
+function getPdfTone(){
+  const hcp = document.getElementById("hcp")?.value;
+
+  // Default-tone dersom handicap ikkje er sett
+  if(!hcp) return "intermediate";
+
+  // Klargjort for framtidig utviding
+  if(hcp === "0–8")   return "elite";
+  if(hcp === "9–15")  return "advanced";
+  if(hcp === "16–29") return "intermediate";
+  return "beginner";
+}
+
 function clubType(c){
   if(c==="Driver") return "wood";
   if(c.endsWith("i")) return "iron";
@@ -1209,7 +1251,9 @@ function renderReportHTML(data){
       ${
         coaching
           ? `
-            <p class="small">${coaching.short}</p>
+            <p class="small">
+              ${(PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).hovudfokus}
+            </p>
             <pre class="small">${coaching.long}</pre>
           `
           : `
@@ -1262,9 +1306,10 @@ function renderReportHTML(data){
         </div>
 
         <p class="small" style="margin-top:8px;">
-          ${e?.focus === "Vedlikehald"
-            ? "Denne kølla fungerer stabilt og bør vedlikehaldast."
-            : "Denne kølla bør prioriterast i treninga."
+          ${
+            e?.bad?.length
+              ? (PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).tolkning_under
+              : (PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).tolkning_over
           }
         </p>
       </div>
