@@ -1214,9 +1214,9 @@ function renderReportHTML(data){
         </div>
 
         <div style="margin:12px 0">
-          <canvas id="report-${c.club}-side" width="320" height="110"></canvas>
-          <canvas id="report-${c.club}-cons" width="320" height="110"></canvas>
-          <canvas id="report-${c.club}-smash" width="320" height="110"></canvas>
+          <canvas id="report-Driver-side"  width="320" height="110"></canvas>
+          <canvas id="report-Driver-cons"  width="320" height="110"></canvas>
+          <canvas id="report-Driver-smash" width="320" height="110"></canvas>
         </div>
       </div>
     `;
@@ -1228,79 +1228,77 @@ function renderReportHTML(data){
 
 function drawReportGraphs(data){
   data.clubs.forEach(c => {
-    drawMiniReportGraph(
-      `report-${c.club}-side`,
-      c.graphs.side,
-      c.baseline?.side,
-      "side"
-    );
 
-    drawMiniReportGraph(
-      `report-${c.club}-cons`,
-      c.graphs.cons,
-      c.baseline?.cons,
-      "cons"
-    );
+    [
+      { key: "side",  label: "Side-consistency" },
+      { key: "cons",  label: "Length consistency" },
+      { key: "smash", label: "Smash factor" }
+    ].forEach(({ key }) => {
 
-    drawMiniReportGraph(
-      `report-${c.club}-smash`,
-      c.graphs.smash,
-      c.baseline?.smash,
-      "smash"
-    );
+      const canvas = document.getElementById(`report-${c.club}-${key}`);
+      if(!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      const series = (c.graphs[key] || [])
+        .filter(d => d.value != null);
+
+      if(series.length === 0) return;
+
+      const baseline = c.baseline?.[key];
+
+      const pad = 30;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const values = series.map(d => d.value);
+      if(baseline != null) values.push(baseline);
+
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      if(min === max){ min -= 1; max += 1; }
+
+      const xStep = (w - pad*2) / (series.length - 1 || 1);
+      const yScale = (h - pad*2) / (max - min);
+
+      // Baseline
+      if(baseline != null){
+        const yBase = h - pad - (baseline - min) * yScale;
+        ctx.setLineDash([4,4]);
+        ctx.strokeStyle = "#c62828";
+        ctx.beginPath();
+        ctx.moveTo(pad, yBase);
+        ctx.lineTo(w - pad, yBase);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Line
+      ctx.strokeStyle = "#1976d2";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      series.forEach((d,i)=>{
+        const x = pad + i * xStep;
+        const y = h - pad - (d.value - min) * yScale;
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      });
+
+      ctx.stroke();
+
+      // Points
+      ctx.fillStyle = "#1976d2";
+      series.forEach((d,i)=>{
+        const x = pad + i * xStep;
+        const y = h - pad - (d.value - min) * yScale;
+        ctx.beginPath();
+        ctx.arc(x,y,3,0,Math.PI*2);
+        ctx.fill();
+      });
+
+    });
   });
-}
-
-function drawMiniReportGraph(canvasId, series, baseline, param){
-  const canvas = document.getElementById(canvasId);
-  if(!canvas || !series.length) return;
-
-  const ctx = canvas.getContext("2d");
-  const pad = 30;
-  const w = canvas.width;
-  const h = canvas.height;
-
-  ctx.clearRect(0,0,w,h);
-
-  const values = series
-    .map(d => d.value)
-    .filter(v => v != null);
-
-  if(baseline != null) values.push(baseline);
-  if(!values.length) return;
-
-  let min = Math.min(...values);
-  let max = Math.max(...values);
-  if(min === max){ min -= 1; max += 1; }
-
-  const xStep = (w - pad*2) / (series.length - 1 || 1);
-  const yScale = (h - pad*2) / (max - min);
-
-  // Baseline
-  if(baseline != null){
-    const yBase = h - pad - (baseline - min) * yScale;
-    ctx.setLineDash([4,4]);
-    ctx.strokeStyle = "#c62828";
-    ctx.beginPath();
-    ctx.moveTo(pad, yBase);
-    ctx.lineTo(w - pad, yBase);
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  // Line
-  ctx.strokeStyle = "#1976d2";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-
-  series.forEach((d,i)=>{
-    if(d.value == null) return;
-    const x = pad + i * xStep;
-    const y = h - pad - (d.value - min) * yScale;
-    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-  });
-
-  ctx.stroke();
 }
 
 function openSessions(c){
