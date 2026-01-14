@@ -216,7 +216,6 @@ canvas {
   <button onclick="openClubs()">🏌️ Køller</button>
   <button onclick="resetAllData()">♻️ Nullstill alt</button>
   <button onclick="openExplanation()">ℹ️ Slik vurderer vi dataene</button>
-  <button onclick="openReportClubModal()">📄 Rapport</button>
 </div>
 
 <div id="bagFocusCard" class="card" style="display:none;"></div>
@@ -375,6 +374,62 @@ const COACHING_TEXT = {
     }
 };
 
+const TRAINING_PLANS = {
+  Presisjon: {
+    title: "Presisjon",
+    sessions: [
+      {
+        name: "Økt 1 – Stabilisering",
+        text: "Fokuser på startretning. Bruk éi kølle og eitt mål. Slå rolige slag og prioriter lik oppstilling og rutine."
+      },
+      {
+        name: "Økt 2 – Forsterking",
+        text: "Same fokus som økt 1. Tren i korte seriar og evaluer serievis, ikkje slag for slag."
+      },
+      {
+        name: "Økt 3 – Overføring",
+        text: "Byt mål ofte. Slå få slag per mål og fokuser på rutine framfor teknikk."
+      }
+    ]
+  },
+
+  Lengdekontroll: {
+    title: "Lengdekontroll",
+    sessions: [
+      {
+        name: "Økt 1 – Stabilisering",
+        text: "Jobb med jamn lengde. Bruk same tempo og svinglengde på kvart slag."
+      },
+      {
+        name: "Økt 2 – Forsterking",
+        text: "Del økta i seriar. Målet er å halde lengda stabil over fleire slag."
+      },
+      {
+        name: "Økt 3 – Overføring",
+        text: "Varier lengdemål. Prioriter kontroll framfor kraft."
+      }
+    ]
+  },
+
+  Treff: {
+    title: "Treffkvalitet",
+    sessions: [
+      {
+        name: "Økt 1 – Stabilisering",
+        text: "Fokuser på rein ballkontakt. Slå rolige slag og kjenn etter treffkjensle."
+      },
+      {
+        name: "Økt 2 – Forsterking",
+        text: "Same kølle og mål. Tren i korte seriar og hald same rytme."
+      },
+      {
+        name: "Økt 3 – Overføring",
+        text: "Byt mål ofte. Prioriter rytme og balanse gjennom slaget."
+      }
+    ]
+  }
+};
+
 const PDF_TEXT = {
 
   elite: { // 0–8
@@ -479,6 +534,56 @@ const PDF_TEXT = {
 
 };
 
+const COPY_V09 = {
+
+  mainFocus: {
+    title: "🎯 Fokus no",
+    trainLabel: "🎯 Tren aktivt på",
+    maintainLabel: "🟢 Behald nivået",
+
+    levels: {
+      critical: "🔴 Kritisk",
+      moderate: "🟠 Moderat",
+      minor: "🟡 Mindre avvik",
+      maintenance: "🟢 Vedlikehald"
+    },
+
+    toneByHcp: {
+      elite: "Små justeringar her vil ha direkte effekt på scoring.",
+      advanced: "Dette er det viktigaste området å prioritere no.",
+      intermediate: "Ved å fokusere her får du mest igjen for treninga.",
+      beginner: "Enkle og repeterbare slag her vil gi rask framgang."
+    },
+
+    emptyTrain: "Ingen kritiske køller",
+    emptyMaintain: "—"
+  },
+
+  reportCard: {
+    title: "📄 Treningsoppsummering",
+    description:
+      "Når du har gjennomført nokre økter, kan du eksportere ei PDF-oppsummering.",
+    button: "Lag rapport (PDF)"
+  },
+
+  detailsToggle: {
+    show: "Sjå detaljar per kølle",
+    hide: "Skjul detaljar per kølle"
+  }
+
+  ,
+
+  clubEvaluation: {
+    goodLabel: "Bra",
+    badLabel: "Dårleg",
+    focusLabel: "🎯 Fokus",
+    referenceLabel: "Referansenivå",
+    trainingLabel: "🛠 Treningsforslag",
+    openDrill: focus => `👉 Opne øving for ${focus.toLowerCase()}`
+  }
+
+};
+
 function getPdfTone(){
   const hcp = document.getElementById("hcp")?.value;
 
@@ -550,93 +655,129 @@ function render(){
     return;
   }
 
-  ALL_CLUBS.filter(c => active.includes(c)).forEach(c=>{
-    ensureClub(c);
+  const main = getMainScreenFocus();
 
+  /* =====================
+     🎯 HOVUDFOKUS
+  ===================== */
+   if(main){
     wrap.innerHTML += `
       <div class="card">
-        <div class="accordion-header" onclick="toggle('${c}')">
-          ${c}
-          <span id="icon-${c}">▶</span>
-        </div>
+        <h3>
+          ${COPY_V09.mainFocus.title}: ${main.focus}
+          <span class="small">
+            ${COPY_V09.mainFocus.levels[main.level]}
+          </span>
+        </h3>
 
-        <div class="accordion-content" id="content-${c}">
-          <div class="field" style="max-width:260px; margin-bottom:6px;">
-              <label>Dato for økt</label>
-              <div class="hint">Når økta faktisk vart gjennomført</div>
-              <input type="date" id="date-${c}" value="${today()}">
-            </div>
-          <div class="grid">
-            ${field(c,"side","Side-consistency (m)")}
-            ${field(c,"cons","Length consistency (m)")}
-            ${field(c,"smash","Smash factor",0.01)}
+        <p class="small">
+          ${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}
+        </p>
+
+        <div class="small" style="margin-top:8px;">
+          <div style="margin-bottom:8px;">
+            <strong>${COPY_V09.mainFocus.trainLabel}</strong><br>
+            ${
+              main.prioritize.length
+                ? main.prioritize.join(", ")
+                : COPY_V09.mainFocus.emptyTrain
+            }
           </div>
 
-
-          <div style="margin-top:8px">
-            ${renderButtons(c)}
-          </div>
-
-          <div id="eval-${c}"></div>
-
-          <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
-
-          <div id="graph-${c}" style="display:none; margin-top:8px">
-          <div class="small" style="margin-bottom:4px;">
-             <strong>Utvikling over tid</strong><br>
-            <em>Blå linje = økter · Stipla = baseline · Grå = referanse</em>
-          </div>
-
-            <select onchange="changeGraphParam('${c}',this.value)">
-              <option value="side">Side</option>
-              <option value="cons">Lengde</option>
-              <option value="smash">Smash</option>
-            </select>
-
-            <canvas id="canvas-${c}" width="360" height="160"></canvas>
-            <div id="graphInsight-${c}" class="small"></div>
+          <div>
+            <strong>${COPY_V09.mainFocus.maintainLabel}</strong><br>
+            ${
+              main.avoid.length
+                ? main.avoid.join(", ")
+                : COPY_V09.mainFocus.emptyMaintain
+            }
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <button onclick="toggleDetails()">
+          ${
+            detailsVisible
+              ? COPY_V09.detailsToggle.hide
+              : COPY_V09.detailsToggle.show
+          }
+        </button>
+      </div>
+
+      <div class="card small">
+        <strong>${COPY_V09.reportCard.title}</strong><br>
+        ${COPY_V09.reportCard.description}
+        <div style="margin-top:6px;">
+          <button onclick="openReportClubModal()">
+            ${COPY_V09.reportCard.button}
+          </button>
+        </div>
+      </div>
     `;
-    renderClubEvaluation(c);
-  });
+  }
+
+
+  /* =====================
+     🏌️ KØLLEKORT
+     (BERRE NÅR DETALJAR ER PÅ)
+  ===================== */
+  if(detailsVisible){
+    ALL_CLUBS
+      .filter(c => active.includes(c))
+      .forEach(c => {
+        ensureClub(c);
+
+        wrap.innerHTML += `
+          <div class="card">
+            <div class="accordion-header" onclick="toggle('${c}')">
+              ${c}
+              <span id="icon-${c}">▶</span>
+            </div>
+
+            <div class="accordion-content" id="content-${c}">
+              <div class="field" style="max-width:260px; margin-bottom:6px;">
+                <label>Dato for økt</label>
+                <input type="date" id="date-${c}" value="${today()}">
+              </div>
+
+              <div class="grid">
+                ${field(c,"side","Side-consistency (m)")}
+                ${field(c,"cons","Length consistency (m)")}
+                ${field(c,"smash","Smash factor",0.01)}
+              </div>
+
+              <div style="margin-top:8px">
+                ${renderButtons(c)}
+              </div>
+
+              <div id="eval-${c}"></div>
+
+              <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
+
+              <div id="graph-${c}" style="display:none; margin-top:8px">
+                <canvas id="canvas-${c}" width="360" height="160"></canvas>
+                <div id="graphInsight-${c}" class="small"></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        renderClubEvaluation(c);
+      });
+  }
 
   localStorage.setItem(STORAGE, JSON.stringify(state));
 }
+
 renderBagFocus();
 
 function renderBagFocus(){
   const card = document.getElementById("bagFocusCard");
   if(!card) return;
 
-  const result = calculateBagFocus();
-  if(!result){
-    card.style.display = "none";
-    return;
-  }
-
-  const text = COACHING_TEXT[result.focus];
-  if(!text){
-    card.style.display = "none";
-    return;
-  }
-
-  card.innerHTML = `
-    <h3>🎯 Hovudfokus for treninga</h3>
-
-    <p class="focus">${text.title}</p>
-    <p class="small">${text.short}</p>
-
-    <pre class="small">${text.long}</pre>
-
-    <p class="small">
-      Basert på ${result.count} køller:
-      <strong>${result.clubs.join(", ")}</strong>
-    </p>
-  `;
-
-  card.style.display = "block";
+  // v3: gamal hovudfokus skal ikkje visast
+  card.style.display = "none";
 }
 
 function field(c,k,label,step=1){
@@ -750,25 +891,37 @@ function renderClubEvaluation(c){
   const p = PGA[clubType(c)];
 
   el.innerHTML=`
-    <p class="good"><strong>Bra:</strong> ${r.good.join(", ")||"—"}</p>
-    <p class="bad"><strong>Dårleg:</strong> ${r.bad.join(", ")||"—"}</p>
+    <p class="good">
+      <strong>${COPY_V09.clubEvaluation.goodLabel}:</strong>
+      ${r.good.join(", ") || "—"}
+    </p>
 
-    <p class="focus">🎯 Fokus: ${r.focus}</p>
+    <p class="bad">
+      <strong>${COPY_V09.clubEvaluation.badLabel}:</strong>
+      ${r.bad.join(", ") || "—"}
+    </p>
+
+    <p class="focus">
+      ${COPY_V09.clubEvaluation.focusLabel}: ${r.focus}
+    </p>
 
     <div class="small" style="margin-top:4px;">
-      <strong>Referansenivå (${clubType(c)}):</strong><br>
+      <strong>
+        ${COPY_V09.clubEvaluation.referenceLabel} (${clubType(c)}):
+      </strong><br>
       Side ≤ ${p.side} m · Lengde ≤ ${p.cons} m · Smash ≥ ${p.smash}
     </div>
 
     ${r.trends || ""}
 
     <div class="tip">
-      <strong>🛠 Treningsforslag:</strong><br>
+      <strong>${COPY_V09.clubEvaluation.trainingLabel}:</strong><br>
       <a href="${drillLink(r.focus)}" target="_blank">
-        👉 Opne øving for ${r.focus.toLowerCase()}
+        ${COPY_V09.clubEvaluation.openDrill(r.focus)}
       </a>
     </div>
   `;
+
 
 }
 
@@ -1062,6 +1215,14 @@ function drawGraph(c,param){
 /* =====================
    UI HELPERS
 ===================== */
+
+let detailsVisible = false;
+
+function toggleDetails(){
+  detailsVisible = !detailsVisible;
+  render();
+}
+
 function toggle(c){
   const e=document.getElementById("content-"+c);
   const i=document.getElementById("icon-"+c);
@@ -1209,6 +1370,41 @@ function calculateBagFocus(){
 
   return { focus: top, count: max, clubs };
 
+}
+
+function getMainScreenFocus(){
+  const bagFocus = calculateBagFocus();
+  if(!bagFocus) return null;
+
+  const prioritize = [];
+  const avoid = [];
+
+  active.forEach(c => {
+    const r = evaluateClub(c);
+    if(!r) return;
+
+    if(r.focus === bagFocus.focus && r.bad.length){
+      prioritize.push({ club: c, score: r.bad.length });
+    }
+    else if(r.focus === "Vedlikehald" && r.bad.length === 0){
+      avoid.push(c);
+    }
+  });
+
+  prioritize.sort((a,b)=>b.score-a.score);
+
+  const level =
+  prioritize.length >= 3 ? "critical" :
+  prioritize.length === 2 ? "moderate" :
+  prioritize.length === 1 ? "minor" :
+  "maintenance";
+
+  return {
+    focus: bagFocus.focus,
+    prioritize: prioritize.slice(0,2).map(x=>x.club),
+    avoid: avoid.slice(0,2),
+    level
+  };
 }
 
 function buildReportData(clubsFilter){
@@ -1422,28 +1618,35 @@ function renderReportHTML(data){
   `;
 
   /* =====================
-     🛠 TRENINGSPLAN
+     🛠 ANBEFALT TRENINGSPLAN
   ===================== */
+  const plan = TRAINING_PLANS[focusKey];
+
   html += `
     <div class="report-section">
       <h3>🛠 Anbefalt treningsplan</h3>
 
       <p class="small">
-        Følg planen i 2–3 økter før ny evaluering.
+        Følg denne planen over 2–3 økter før ny evaluering.
       </p>
 
-      <ul class="small">
-        <li><strong>Økt 1:</strong> Hovudfokus – ${coaching?.title || "valfritt fokus"}</li>
-        <li><strong>Økt 2:</strong> Stabilisering av same fokus</li>
-        <li><strong>Økt 3:</strong> Vedlikehald av køller som fungerer</li>
-      </ul>
-      <ul class="small">
-        ${
-          (PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).treningsraad
-            .map(t => `<li>${t}</li>`)
-            .join("")
-        }
-      </ul>
+      ${
+        plan
+          ? `
+            <ul class="small">
+              ${plan.sessions.map(s => `
+                <li>
+                  <strong>${s.name}:</strong> ${s.text}
+                </li>
+              `).join("")}
+            </ul>
+          `
+          : `
+            <p class="small">
+              Ingen treningsplan tilgjengeleg for dette fokusområdet.
+            </p>
+          `
+      }
     </div>
   `;
 
