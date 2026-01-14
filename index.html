@@ -603,6 +603,21 @@ function clubType(c){
   return "wedge";
 }
 
+function mapOutdoorInput(level, clubTypeKey, param){
+  const ref = PGA[clubTypeKey][param];
+
+  if(level === "good"){
+    return param === "smash" ? ref + 0.05 : ref - 2;
+  }
+
+  if(level === "ok"){
+    return ref;
+  }
+
+  // "bad"
+  return param === "smash" ? ref - 0.05 : ref + 3;
+}
+
 function drillLink(focus){
   if(focus === "Presisjon") return "ovelser/startretning.html";
   if(focus === "Lengdekontroll") return "ovelser/lengdekontroll.html";
@@ -617,6 +632,8 @@ let openClubId = null;
 let selectedSessionClub = null;
 let selectedSessionIndex = null;
 let selectedReportClubs = [];
+let trainingMode = "simulator"; // "simulator" | "outdoor"
+
 
 /* =====================
    INIT STATE (SAFE)
@@ -656,6 +673,36 @@ function render(){
   }
 
   const main = getMainScreenFocus();
+
+  // =====================
+  // 🧭 TRENINGS­MODUS
+  // =====================
+  wrap.innerHTML += `
+    <div class="card small">
+      <strong>Treningsmodus</strong><br>
+
+      <span class="small">
+        ${
+          trainingMode === "outdoor"
+            ? "Utendørs: basert på eigne observasjonar – ikkje måledata."
+            : "Simulator: basert på tal frå TrackMan eller liknande."
+        }
+      </span>
+
+      <div style="margin-top:6px;">
+        <button onclick="setTrainingMode('simulator')"
+          ${trainingMode === "simulator" ? "disabled" : ""}>
+          🏠 Simulator
+        </button>
+
+        <button onclick="setTrainingMode('outdoor')"
+          ${trainingMode === "outdoor" ? "disabled" : ""}>
+          🌳 Utendørs
+        </button>
+      </div>
+    </div>
+  `;
+
 
   /* =====================
      🎯 HOVUDFOKUS
@@ -742,10 +789,21 @@ function render(){
               </div>
 
               <div class="grid">
-                ${field(c,"side","Side-consistency (m)")}
-                ${field(c,"cons","Length consistency (m)")}
-                ${field(c,"smash","Smash factor",0.01)}
+                ${
+                  trainingMode === "outdoor"
+                    ? `
+                      ${outdoorField(c,"side","Presisjon")}
+                      ${outdoorField(c,"cons","Lengdekontroll")}
+                      ${outdoorField(c,"smash","Treff")}
+                    `
+                    : `
+                      ${field(c,"side","Side-consistency (m)")}
+                      ${field(c,"cons","Length consistency (m)")}
+                      ${field(c,"smash","Smash factor",0.01)}
+                    `
+                }
               </div>
+
 
               <div style="margin-top:8px">
                 ${renderButtons(c)}
@@ -756,9 +814,27 @@ function render(){
               <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
 
               <div id="graph-${c}" style="display:none; margin-top:8px">
+
+                <!-- PARAMETERVAL -->
+                <div class="small" style="margin-bottom:6px;">
+                  Vis:
+                  <select onchange="changeGraphParam('${c}', this.value)">
+                    <option value="side" ${state[c]._graphParam==="side"?"selected":""}>
+                      Presisjon
+                    </option>
+                    <option value="cons" ${state[c]._graphParam==="cons"?"selected":""}>
+                      Lengdekontroll
+                    </option>
+                    <option value="smash" ${state[c]._graphParam==="smash"?"selected":""}>
+                      Treff
+                    </option>
+                  </select>
+                </div>
+
                 <canvas id="canvas-${c}" width="360" height="160"></canvas>
                 <div id="graphInsight-${c}" class="small"></div>
               </div>
+
             </div>
           </div>
         `;
@@ -788,6 +864,19 @@ function field(c,k,label,step=1){
       <input type="number" step="${step}"
         value="${v}"
         oninput="updateValue('${c}','${k}',this.value)">
+    </div>
+  `;
+}
+
+function outdoorField(c, param, label){
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <div style="display:flex; gap:6px; margin-top:4px;">
+        <button onclick="setOutdoor('${c}','${param}','bad')">🔴</button>
+        <button onclick="setOutdoor('${c}','${param}','ok')">🟠</button>
+        <button onclick="setOutdoor('${c}','${param}','good')">🟢</button>
+      </div>
     </div>
   `;
 }
@@ -992,6 +1081,11 @@ function resetClub(c){
 
 function updateValue(c,k,v){
   state[c].current[k] = v ? parseFloat(v) : null;
+}
+
+function setOutdoor(c, param, level){
+  const value = mapOutdoorInput(level, clubType(c), param);
+  state[c].current[param] = value;
 }
 
 function setBaseline(c){
@@ -1217,6 +1311,12 @@ function drawGraph(c,param){
 ===================== */
 
 let detailsVisible = false;
+
+function setTrainingMode(mode){
+  if(mode !== "simulator" && mode !== "outdoor") return;
+  trainingMode = mode;
+  render();
+}
 
 function toggleDetails(){
   detailsVisible = !detailsVisible;
