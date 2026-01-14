@@ -113,59 +113,94 @@ canvas {
   border-top: 1px solid #ccc;
 }
 
-@media print {
-
-  /* Skjul ALT */
-  body * {
-    display: none !important;
-  }
-
-  /* Vis berre print-root */
-  #printRoot,
-  #printRoot * {
-    display: block !important;
-  }
-
-  #printRoot {
-    position: static;
-    padding: 24px;
-  }
-
-  /* Éi kølle per side */
-  .report-club {
-    page-break-inside: avoid;
-    break-inside: avoid;
-
-    /* Viktig: lås høgda til sida */
-    min-height: calc(100vh - 40mm);
-    box-sizing: border-box;
-  }
-
-  .report-club:first-of-type {
-    page-break-before: auto;
-    break-before: auto;
-  }
-
-  @page {
-    margin: 20mm;
-  }
-
-    @page {
-    margin: 20mm;
-  }
-
-  #printRoot > *:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-}
-
 .page-break {
   height: 0;
   overflow: hidden;
   page-break-before: always;
   break-before: page;
+}
 
+@media print {
+
+  /* ====== GRUNNINNSTILLING ====== */
+  html, body {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-size: 13px;
+    color: #000;
+  }
+
+  /* ====== SKJUL ALT SOM IKKJE ER RAPPORT ====== */
+  body > * {
+    display: none !important;
+  }
+
+  /* ====== VIS RAPPORTEN ====== */
+  #reportModal,
+  #reportModal * {
+    display: block !important;
+  }
+
+  /* Fjern modal-oppleving */
+  .overlay {
+    position: static !important;
+    background: none !important;
+  }
+
+  .modal {
+    position: static !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* ====== RAPPORT-LAYOUT ====== */
+  .report-root {
+    padding: 0;
+  }
+
+  .report-section {
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+  }
+
+  .report-divider {
+    border-top: 1px solid #ccc;
+    margin: 14px 0;
+  }
+
+  h2, h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* ====== LISTAR OG TEKST ====== */
+  ul {
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  /* ====== SIDEOPPSETT ====== */
+  @page {
+    margin: 20mm;
+  }
+}
+/* ====== PDF / RAPPORT – MOBILTEKST ====== */
+.report-root pre {
+  white-space: pre-wrap;      /* Bevar linjeskift, men tillat wrapping */
+  word-wrap: break-word;      /* Bryt lange ord */
+  overflow-wrap: break-word;  /* Moderne standard */
 }
 
 </style>
@@ -181,7 +216,6 @@ canvas {
   <button onclick="openClubs()">🏌️ Køller</button>
   <button onclick="resetAllData()">♻️ Nullstill alt</button>
   <button onclick="openExplanation()">ℹ️ Slik vurderer vi dataene</button>
-  <button onclick="openReportClubModal()">📄 Rapport</button>
 </div>
 
 <div id="bagFocusCard" class="card" style="display:none;"></div>
@@ -233,8 +267,7 @@ canvas {
 /* =========================================================
    Golf ROI – Treningsanalyse
    ---------------------------------------------------------
-   Versjon: v2.6 (LOCKED)
-   Status : Stabil, rydda state-modell og grafarkitektur
+   // Versjon: v2.9 (PDF v1 – tekstbasert, dynamisk språk per handicap)
 
    HOVUDPRINSIPP:
    1. Éin autoritativ state (state + active)
@@ -341,10 +374,248 @@ const COACHING_TEXT = {
     }
 };
 
+const TRAINING_PLANS = {
+  Presisjon: {
+    title: "Presisjon",
+    sessions: [
+      {
+        name: "Økt 1 – Stabilisering",
+        text: "Fokuser på startretning. Bruk éi kølle og eitt mål. Slå rolige slag og prioriter lik oppstilling og rutine."
+      },
+      {
+        name: "Økt 2 – Forsterking",
+        text: "Same fokus som økt 1. Tren i korte seriar og evaluer serievis, ikkje slag for slag."
+      },
+      {
+        name: "Økt 3 – Overføring",
+        text: "Byt mål ofte. Slå få slag per mål og fokuser på rutine framfor teknikk."
+      }
+    ]
+  },
+
+  Lengdekontroll: {
+    title: "Lengdekontroll",
+    sessions: [
+      {
+        name: "Økt 1 – Stabilisering",
+        text: "Jobb med jamn lengde. Bruk same tempo og svinglengde på kvart slag."
+      },
+      {
+        name: "Økt 2 – Forsterking",
+        text: "Del økta i seriar. Målet er å halde lengda stabil over fleire slag."
+      },
+      {
+        name: "Økt 3 – Overføring",
+        text: "Varier lengdemål. Prioriter kontroll framfor kraft."
+      }
+    ]
+  },
+
+  Treff: {
+    title: "Treffkvalitet",
+    sessions: [
+      {
+        name: "Økt 1 – Stabilisering",
+        text: "Fokuser på rein ballkontakt. Slå rolige slag og kjenn etter treffkjensle."
+      },
+      {
+        name: "Økt 2 – Forsterking",
+        text: "Same kølle og mål. Tren i korte seriar og hald same rytme."
+      },
+      {
+        name: "Økt 3 – Overføring",
+        text: "Byt mål ofte. Prioriter rytme og balanse gjennom slaget."
+      }
+    ]
+  }
+};
+
+const PDF_TEXT = {
+
+  elite: { // 0–8
+    summary:
+      "Vidare utvikling krev presist og disiplinert treningsarbeid.",
+
+    hovudfokus:
+      "Dette området avgrensar no scoring-potensialet ditt. Vidare framgang krev målretta og strukturert trening.",
+
+    tolkning_under:
+      "Variasjonen ligg over ønskja nivå og reduserer effektiviteten i spel.",
+
+    tolkning_over:
+      "Denne kølla er stabil og bør berre vedlikehaldast.",
+
+    treningsraad: [
+      "Tren med klart definert mål for kvar økt",
+      "Prioriter kvalitet framfor volum",
+      "Evaluer utvikling over fleire økter"
+    ],
+
+    unngaa: [
+      "Ustrukturert trening",
+      "Justeringar utan datagrunnlag"
+    ]
+  },
+
+  advanced: { // 9–15
+    summary:
+      "Klar flaskehals identifisert – riktig prioritering gir rask framgang.",
+
+    hovudfokus:
+      "Presisjon er no den tydelegaste avgrensinga. Vidare framgang krev fokus på startretning og treffpunkt.",
+
+    tolkning_under:
+      "Lengdepotensialet er til stades, men side-spreiing reduserer utteljinga.",
+
+    tolkning_over:
+      "Denne kølla leverer stabilt og krev berre vedlikehald.",
+
+    treningsraad: [
+      "Ha eitt hovudfokus per økt",
+      "Unngå å evaluere enkeltøkter isolert",
+      "La gode køller vere i fred"
+    ],
+
+    unngaa: [
+      "Å jage lengde når presisjon er hovudutfordringa",
+      "For mange fokusområde samtidig"
+    ]
+  },
+
+  intermediate: { // 16–29 (DEFAULT)
+    summary:
+      "Strukturert trening på eitt område vil gi mest effekt no.",
+
+    hovudfokus:
+      "Fleire køller viser same type utfordring. Ved å prioritere dette området kan du få framgang på tvers av køller.",
+
+    tolkning_under:
+      "Variabel prestasjon gjer resultatet mindre forutsigbart.",
+
+    tolkning_over:
+      "Denne kølla fungerer stabilt og bør berre vedlikehaldast.",
+
+    treningsraad: [
+      "Fokuser på éin ferdigheit per økt",
+      "Tren roleg og repeterbart",
+      "Vurder utvikling over fleire økter"
+    ],
+
+    unngaa: [
+      "Å bytte fokus midt i økta",
+      "Å overanalysere enkeltøkter"
+    ]
+  },
+
+  beginner: { // 30–54
+    summary:
+      "Enklare og meir lik trening vil gi betre kontroll.",
+
+    hovudfokus:
+      "Målet no er å få fleire slag som kjennest like, slik at ballen oftare hamnar der du siktar.",
+
+    tolkning_under:
+      "Denne kølla er litt ujamn, men små justeringar kan gi betre kontroll.",
+
+    tolkning_over:
+      "Denne kølla fungerer greitt og treng inga endring no.",
+
+    treningsraad: [
+      "Bruk same oppstilling på alle slag",
+      "Tren roleg tempo",
+      "Fokuser på gode treff, ikkje perfekte slag"
+    ],
+
+    unngaa: [
+      "Tekniske detaljar",
+      "Å prøve å endre alt på ein gong"
+    ]
+  }
+
+};
+
+const COPY_V09 = {
+
+  mainFocus: {
+    title: "🎯 Fokus no",
+    trainLabel: "🎯 Tren aktivt på",
+    maintainLabel: "🟢 Behald nivået",
+
+    levels: {
+      critical: "🔴 Kritisk",
+      moderate: "🟠 Moderat",
+      minor: "🟡 Mindre avvik",
+      maintenance: "🟢 Vedlikehald"
+    },
+
+    toneByHcp: {
+      elite: "Små justeringar her vil ha direkte effekt på scoring.",
+      advanced: "Dette er det viktigaste området å prioritere no.",
+      intermediate: "Ved å fokusere her får du mest igjen for treninga.",
+      beginner: "Enkle og repeterbare slag her vil gi rask framgang."
+    },
+
+    emptyTrain: "Ingen kritiske køller",
+    emptyMaintain: "—"
+  },
+
+  reportCard: {
+    title: "📄 Treningsoppsummering",
+    description:
+      "Når du har gjennomført nokre økter, kan du eksportere ei PDF-oppsummering.",
+    button: "Lag rapport (PDF)"
+  },
+
+  detailsToggle: {
+    show: "Sjå detaljar per kølle",
+    hide: "Skjul detaljar per kølle"
+  }
+
+  ,
+
+  clubEvaluation: {
+    goodLabel: "Bra",
+    badLabel: "Dårleg",
+    focusLabel: "🎯 Fokus",
+    referenceLabel: "Referansenivå",
+    trainingLabel: "🛠 Treningsforslag",
+    openDrill: focus => `👉 Opne øving for ${focus.toLowerCase()}`
+  }
+
+};
+
+function getPdfTone(){
+  const hcp = document.getElementById("hcp")?.value;
+
+  // Default-tone dersom handicap ikkje er sett
+  if(!hcp) return "intermediate";
+
+  // Klargjort for framtidig utviding
+  if(hcp === "0–8")   return "elite";
+  if(hcp === "9–15")  return "advanced";
+  if(hcp === "16–29") return "intermediate";
+  return "beginner";
+}
+
 function clubType(c){
   if(c==="Driver") return "wood";
   if(c.endsWith("i")) return "iron";
   return "wedge";
+}
+
+function mapOutdoorInput(level, clubTypeKey, param){
+  const ref = PGA[clubTypeKey][param];
+
+  if(level === "good"){
+    return param === "smash" ? ref + 0.05 : ref - 2;
+  }
+
+  if(level === "ok"){
+    return ref;
+  }
+
+  // "bad"
+  return param === "smash" ? ref - 0.05 : ref + 3;
 }
 
 function drillLink(focus){
@@ -361,6 +632,8 @@ let openClubId = null;
 let selectedSessionClub = null;
 let selectedSessionIndex = null;
 let selectedReportClubs = [];
+let trainingMode = "simulator"; // "simulator" | "outdoor"
+
 
 /* =====================
    INIT STATE (SAFE)
@@ -399,93 +672,188 @@ function render(){
     return;
   }
 
-  ALL_CLUBS.filter(c => active.includes(c)).forEach(c=>{
-    ensureClub(c);
+  const main = getMainScreenFocus();
 
+  // =====================
+  // 🧭 TRENINGS­MODUS
+  // =====================
+  wrap.innerHTML += `
+    <div class="card small">
+      <strong>Treningsmodus</strong><br>
+
+      <span class="small">
+        ${
+          trainingMode === "outdoor"
+            ? "Utendørs: basert på eigne observasjonar – ikkje måledata."
+            : "Simulator: basert på tal frå TrackMan eller liknande."
+        }
+      </span>
+
+      <div style="margin-top:6px;">
+        <button onclick="setTrainingMode('simulator')"
+          ${trainingMode === "simulator" ? "disabled" : ""}>
+          🏠 Simulator
+        </button>
+
+        <button onclick="setTrainingMode('outdoor')"
+          ${trainingMode === "outdoor" ? "disabled" : ""}>
+          🌳 Utendørs
+        </button>
+      </div>
+    </div>
+  `;
+
+
+  /* =====================
+     🎯 HOVUDFOKUS
+  ===================== */
+   if(main){
     wrap.innerHTML += `
       <div class="card">
-        <div class="accordion-header" onclick="toggle('${c}')">
-          ${c}
-          <span id="icon-${c}">▶</span>
-        </div>
+        <h3>
+          ${COPY_V09.mainFocus.title}: ${main.focus}
+          <span class="small">
+            ${COPY_V09.mainFocus.levels[main.level]}
+          </span>
+        </h3>
 
-        <div class="accordion-content" id="content-${c}">
-          <div class="field" style="max-width:260px; margin-bottom:6px;">
-              <label>Dato for økt</label>
-              <div class="hint">Når økta faktisk vart gjennomført</div>
-              <input type="date" id="date-${c}" value="${today()}">
-            </div>
-          <div class="grid">
-            ${field(c,"side","Side-consistency (m)")}
-            ${field(c,"cons","Length consistency (m)")}
-            ${field(c,"smash","Smash factor",0.01)}
+        <p class="small">
+          ${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}
+        </p>
+
+        <div class="small" style="margin-top:8px;">
+          <div style="margin-bottom:8px;">
+            <strong>${COPY_V09.mainFocus.trainLabel}</strong><br>
+            ${
+              main.prioritize.length
+                ? main.prioritize.join(", ")
+                : COPY_V09.mainFocus.emptyTrain
+            }
           </div>
 
-
-          <div style="margin-top:8px">
-            ${renderButtons(c)}
-          </div>
-
-          <div id="eval-${c}"></div>
-
-          <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
-
-          <div id="graph-${c}" style="display:none; margin-top:8px">
-          <div class="small" style="margin-bottom:4px;">
-             <strong>Utvikling over tid</strong><br>
-            <em>Blå linje = økter · Stipla = baseline · Grå = referanse</em>
-          </div>
-
-            <select onchange="changeGraphParam('${c}',this.value)">
-              <option value="side">Side</option>
-              <option value="cons">Lengde</option>
-              <option value="smash">Smash</option>
-            </select>
-
-            <canvas id="canvas-${c}" width="360" height="160"></canvas>
-            <div id="graphInsight-${c}" class="small"></div>
+          <div>
+            <strong>${COPY_V09.mainFocus.maintainLabel}</strong><br>
+            ${
+              main.avoid.length
+                ? main.avoid.join(", ")
+                : COPY_V09.mainFocus.emptyMaintain
+            }
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <button onclick="toggleDetails()">
+          ${
+            detailsVisible
+              ? COPY_V09.detailsToggle.hide
+              : COPY_V09.detailsToggle.show
+          }
+        </button>
+      </div>
+
+      <div class="card small">
+        <strong>${COPY_V09.reportCard.title}</strong><br>
+        ${COPY_V09.reportCard.description}
+        <div style="margin-top:6px;">
+          <button onclick="openReportClubModal()">
+            ${COPY_V09.reportCard.button}
+          </button>
+        </div>
+      </div>
     `;
-    renderClubEvaluation(c);
-  });
+  }
+
+
+  /* =====================
+     🏌️ KØLLEKORT
+     (BERRE NÅR DETALJAR ER PÅ)
+  ===================== */
+  if(detailsVisible){
+    ALL_CLUBS
+      .filter(c => active.includes(c))
+      .forEach(c => {
+        ensureClub(c);
+
+        wrap.innerHTML += `
+          <div class="card">
+            <div class="accordion-header" onclick="toggle('${c}')">
+              ${c}
+              <span id="icon-${c}">▶</span>
+            </div>
+
+            <div class="accordion-content" id="content-${c}">
+              <div class="field" style="max-width:260px; margin-bottom:6px;">
+                <label>Dato for økt</label>
+                <input type="date" id="date-${c}" value="${today()}">
+              </div>
+
+              <div class="grid">
+                ${
+                  trainingMode === "outdoor"
+                    ? `
+                      ${outdoorField(c,"side","Presisjon")}
+                      ${outdoorField(c,"cons","Lengdekontroll")}
+                      ${outdoorField(c,"smash","Treff")}
+                    `
+                    : `
+                      ${field(c,"side","Side-consistency (m)")}
+                      ${field(c,"cons","Length consistency (m)")}
+                      ${field(c,"smash","Smash factor",0.01)}
+                    `
+                }
+              </div>
+
+
+              <div style="margin-top:8px">
+                ${renderButtons(c)}
+              </div>
+
+              <div id="eval-${c}"></div>
+
+              <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
+
+              <div id="graph-${c}" style="display:none; margin-top:8px">
+
+                <!-- PARAMETERVAL -->
+                <div class="small" style="margin-bottom:6px;">
+                  Vis:
+                  <select onchange="changeGraphParam('${c}', this.value)">
+                    <option value="side" ${state[c]._graphParam==="side"?"selected":""}>
+                      Presisjon
+                    </option>
+                    <option value="cons" ${state[c]._graphParam==="cons"?"selected":""}>
+                      Lengdekontroll
+                    </option>
+                    <option value="smash" ${state[c]._graphParam==="smash"?"selected":""}>
+                      Treff
+                    </option>
+                  </select>
+                </div>
+
+                <canvas id="canvas-${c}" width="360" height="160"></canvas>
+                <div id="graphInsight-${c}" class="small"></div>
+              </div>
+
+            </div>
+          </div>
+        `;
+
+        renderClubEvaluation(c);
+      });
+  }
 
   localStorage.setItem(STORAGE, JSON.stringify(state));
 }
+
 renderBagFocus();
 
 function renderBagFocus(){
   const card = document.getElementById("bagFocusCard");
   if(!card) return;
 
-  const result = calculateBagFocus();
-  if(!result){
-    card.style.display = "none";
-    return;
-  }
-
-  const text = COACHING_TEXT[result.focus];
-  if(!text){
-    card.style.display = "none";
-    return;
-  }
-
-  card.innerHTML = `
-    <h3>🎯 Hovudfokus for treninga</h3>
-
-    <p class="focus">${text.title}</p>
-    <p class="small">${text.short}</p>
-
-    <pre class="small">${text.long}</pre>
-
-    <p class="small">
-      Basert på ${result.count} køller:
-      <strong>${result.clubs.join(", ")}</strong>
-    </p>
-  `;
-
-  card.style.display = "block";
+  // v3: gamal hovudfokus skal ikkje visast
+  card.style.display = "none";
 }
 
 function field(c,k,label,step=1){
@@ -496,6 +864,19 @@ function field(c,k,label,step=1){
       <input type="number" step="${step}"
         value="${v}"
         oninput="updateValue('${c}','${k}',this.value)">
+    </div>
+  `;
+}
+
+function outdoorField(c, param, label){
+  return `
+    <div class="field">
+      <label>${label}</label>
+      <div style="display:flex; gap:6px; margin-top:4px;">
+        <button onclick="setOutdoor('${c}','${param}','bad')">🔴</button>
+        <button onclick="setOutdoor('${c}','${param}','ok')">🟠</button>
+        <button onclick="setOutdoor('${c}','${param}','good')">🟢</button>
+      </div>
     </div>
   `;
 }
@@ -599,25 +980,37 @@ function renderClubEvaluation(c){
   const p = PGA[clubType(c)];
 
   el.innerHTML=`
-    <p class="good"><strong>Bra:</strong> ${r.good.join(", ")||"—"}</p>
-    <p class="bad"><strong>Dårleg:</strong> ${r.bad.join(", ")||"—"}</p>
+    <p class="good">
+      <strong>${COPY_V09.clubEvaluation.goodLabel}:</strong>
+      ${r.good.join(", ") || "—"}
+    </p>
 
-    <p class="focus">🎯 Fokus: ${r.focus}</p>
+    <p class="bad">
+      <strong>${COPY_V09.clubEvaluation.badLabel}:</strong>
+      ${r.bad.join(", ") || "—"}
+    </p>
+
+    <p class="focus">
+      ${COPY_V09.clubEvaluation.focusLabel}: ${r.focus}
+    </p>
 
     <div class="small" style="margin-top:4px;">
-      <strong>Referansenivå (${clubType(c)}):</strong><br>
+      <strong>
+        ${COPY_V09.clubEvaluation.referenceLabel} (${clubType(c)}):
+      </strong><br>
       Side ≤ ${p.side} m · Lengde ≤ ${p.cons} m · Smash ≥ ${p.smash}
     </div>
 
     ${r.trends || ""}
 
     <div class="tip">
-      <strong>🛠 Treningsforslag:</strong><br>
+      <strong>${COPY_V09.clubEvaluation.trainingLabel}:</strong><br>
       <a href="${drillLink(r.focus)}" target="_blank">
-        👉 Opne øving for ${r.focus.toLowerCase()}
+        ${COPY_V09.clubEvaluation.openDrill(r.focus)}
       </a>
     </div>
   `;
+
 
 }
 
@@ -688,6 +1081,11 @@ function resetClub(c){
 
 function updateValue(c,k,v){
   state[c].current[k] = v ? parseFloat(v) : null;
+}
+
+function setOutdoor(c, param, level){
+  const value = mapOutdoorInput(level, clubType(c), param);
+  state[c].current[param] = value;
 }
 
 function setBaseline(c){
@@ -911,6 +1309,20 @@ function drawGraph(c,param){
 /* =====================
    UI HELPERS
 ===================== */
+
+let detailsVisible = false;
+
+function setTrainingMode(mode){
+  if(mode !== "simulator" && mode !== "outdoor") return;
+  trainingMode = mode;
+  render();
+}
+
+function toggleDetails(){
+  detailsVisible = !detailsVisible;
+  render();
+}
+
 function toggle(c){
   const e=document.getElementById("content-"+c);
   const i=document.getElementById("icon-"+c);
@@ -922,6 +1334,10 @@ function toggle(c){
 
 function today(){
   return new Date().toISOString().slice(0,10);
+}
+
+function safeId(str){
+  return str.replace(/[^a-z0-9]/gi, "");
 }
 
 /* =====================
@@ -992,6 +1408,10 @@ function closeReportClubModal(){
   document.getElementById("reportClubModal").style.display = "none";
 }
 
+function closeReportPreview(){
+  document.getElementById("reportModal").style.display = "none";
+}
+
 function toggleReportClub(c){
   selectedReportClubs = selectedReportClubs.includes(c)
     ? selectedReportClubs.filter(x=>x!==c)
@@ -1052,6 +1472,41 @@ function calculateBagFocus(){
 
 }
 
+function getMainScreenFocus(){
+  const bagFocus = calculateBagFocus();
+  if(!bagFocus) return null;
+
+  const prioritize = [];
+  const avoid = [];
+
+  active.forEach(c => {
+    const r = evaluateClub(c);
+    if(!r) return;
+
+    if(r.focus === bagFocus.focus && r.bad.length){
+      prioritize.push({ club: c, score: r.bad.length });
+    }
+    else if(r.focus === "Vedlikehald" && r.bad.length === 0){
+      avoid.push(c);
+    }
+  });
+
+  prioritize.sort((a,b)=>b.score-a.score);
+
+  const level =
+  prioritize.length >= 3 ? "critical" :
+  prioritize.length === 2 ? "moderate" :
+  prioritize.length === 1 ? "minor" :
+  "maintenance";
+
+  return {
+    focus: bagFocus.focus,
+    prioritize: prioritize.slice(0,2).map(x=>x.club),
+    avoid: avoid.slice(0,2),
+    level
+  };
+}
+
 function buildReportData(clubsFilter){
   const generatedAt = new Date().toISOString().slice(0,10);
   const bagFocus = calculateBagFocus();
@@ -1109,15 +1564,6 @@ function openReportPreview(clubsFilter){
 
   el.innerHTML = renderReportHTML(data);
   document.getElementById("reportModal").style.display = "flex";
-
-  // 🎨 Teikn grafar ETTER at HTML er på plass
-  setTimeout(() => {
-    drawReportGraphs(data);
-  }, 0);
-}
-
-function closeReportPreview(){
-  document.getElementById("reportModal").style.display = "none";
 }
 
 /* =========================
@@ -1127,54 +1573,68 @@ function printReport(clubsFilter){
   const data = buildReportData(clubsFilter);
   const root = document.getElementById("printRoot");
 
-  // 1. Bygg rapporten i print-root
   root.innerHTML = renderReportHTML(data);
   root.style.display = "block";
 
-  // 2. Teikn grafar etter at DOM er klar
-  setTimeout(() => {
-    drawReportGraphs(data);
+  // Vent på DOM + canvas-render
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
 
-    // 3. Print
-    window.print();
+      drawReportGraphs(data);
 
-    // 4. Rydd opp
-    root.innerHTML = "";
-    root.style.display = "none";
-  }, 0);
+      requestAnimationFrame(() => {
+        window.print();
+
+        // Rydd opp
+        root.innerHTML = "";
+        root.style.display = "none";
+      });
+
+    });
+  });
+}
+
+function printReport(){
+  window.print();
 }
 
 function renderReportHTML(data){
   let html = `
+    <div class="report-section">
+      <h2>📄 Treningsoppsummering – Golf ROI</h2>
 
-    <div class="report-section report-intro">
-      <h2>📄 Treningsrapport – Golf ROI</h2>
-      <p><strong>Dato:</strong> ${data.meta.generatedAt}</p>
-      <p><strong>Referanse:</strong> ${data.meta.reference}</p>
+      <p class="small">
+        <strong>Periode:</strong> ${data.meta.generatedAt}<br>
+        <strong>Referanse:</strong> ${data.meta.reference}
+      </p>
     </div>
   `;
 
-  /* 🎯 HOVUDFOKUS */
+  /* =====================
+     🎯 SAMANDRAG / HOVUDFOKUS
+  ===================== */
   const focusKey = data.bagFocus?.focus;
   const coaching = COACHING_TEXT[focusKey];
 
   html += `
     <div class="report-section">
-      <h3>🎯 Hovudfokus</h3>
+      <h3>🎯 Hovudfokus for treninga</h3>
 
       <p class="focus">
-        ${coaching?.title || "Ingen klar prioritet"}
+        ${coaching?.title || "Ingen klar hovudprioritet"}
       </p>
 
       ${
         coaching
           ? `
-            <p class="small">${coaching.short}</p>
+            <p class="small">
+              ${(PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).hovudfokus}
+            </p>
             <pre class="small">${coaching.long}</pre>
           `
           : `
             <p class="small">
-              Ikkje nok data til å gi ein tydeleg hovudprioritet.
+              Ikkje nok data til å gi ei tydeleg anbefaling.
             </p>
           `
       }
@@ -1188,66 +1648,183 @@ function renderReportHTML(data){
     <div class="report-divider"></div>
   `;
 
-  /* 🏌️ KØLLER – ÉI KØLLE = ÉI SIDE (styrt av CSS) */
-  data.clubs.forEach((c, index) => {
-
-    // 🔹 Sidebryt FØR alle unntatt første
-    if (index > 0) {
-      html += `<div class="page-break"></div>`;
-    }
+  /* =====================
+     🏌️ ANALYSE PER KØLLE
+  ===================== */
+  data.clubs.forEach(c => {
+    const e = c.evaluation;
 
     html += `
-      <div class="report-section report-club">
-        <h3>${c.club}</h3>
+      <div class="report-section">
+        <h3>🏌️ ${c.club}</h3>
 
         <p class="small">
-          Økter: ${c.sessionsCount}
+          Økter i perioden: ${c.sessionsCount}
         </p>
 
         <p>
-          <strong>Fokus:</strong> ${c.evaluation?.focus || "—"}
+          <strong>Status:</strong>
+          ${
+            e?.bad?.length
+              ? "<span class='bad'>Under baseline</span>"
+              : "<span class='good'>På eller over baseline</span>"
+          }
+        </p>
+
+        <p>
+          <strong>Primært treningsfokus:</strong>
+          <span class="focus">${e?.focus || "Vedlikehald"}</span>
         </p>
 
         <div class="small">
-          <strong>Bra:</strong> ${(c.evaluation?.good || []).join(", ") || "—"}<br>
-          <strong>Dårleg:</strong> ${(c.evaluation?.bad || []).join(", ") || "—"}
+          <strong>Bra:</strong> ${(e?.good || []).join(", ") || "—"}<br>
+          <strong>Dårleg:</strong> ${(e?.bad || []).join(", ") || "—"}
         </div>
 
-        <div style="margin:12px 0">
-          <canvas id="report-${c.club}-side" width="320" height="110"></canvas>
-          <canvas id="report-${c.club}-cons" width="320" height="110"></canvas>
-          <canvas id="report-${c.club}-smash" width="320" height="110"></canvas>
-        </div>
+        <p class="small" style="margin-top:8px;">
+          ${
+            e?.bad?.length
+              ? (PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).tolkning_under
+              : (PDF_TEXT[getPdfTone()] || PDF_TEXT.intermediate).tolkning_over
+          }
+        </p>
       </div>
     `;
   });
 
+  /* =====================
+     📈 TRENDOPPSUMMERING
+  ===================== */
+  html += `
+    <div class="report-section">
+      <h3>📈 Trendoppsummering</h3>
+
+      <p class="small">
+        Denne vurderinga er basert på samanlikning mellom baseline
+        og dei siste øktene på tvers av køller.
+      </p>
+
+      <ul class="small">
+        <li>Presisjon: vurdert per kølle basert på side-consistency</li>
+        <li>Lengdekontroll: vurdert per kølle basert på lengdevariasjon</li>
+        <li>Treffkvalitet: vurdert per kølle basert på smash factor</li>
+      </ul>
+
+      <p class="small">
+        Bruk trendane som rettesnor over fleire økter,
+        ikkje som fasit frå ei enkelt økt.
+      </p>
+    </div>
+  `;
+
+  /* =====================
+     🛠 ANBEFALT TRENINGSPLAN
+  ===================== */
+  const plan = TRAINING_PLANS[focusKey];
+
+  html += `
+    <div class="report-section">
+      <h3>🛠 Anbefalt treningsplan</h3>
+
+      <p class="small">
+        Følg denne planen over 2–3 økter før ny evaluering.
+      </p>
+
+      ${
+        plan
+          ? `
+            <ul class="small">
+              ${plan.sessions.map(s => `
+                <li>
+                  <strong>${s.name}:</strong> ${s.text}
+                </li>
+              `).join("")}
+            </ul>
+          `
+          : `
+            <p class="small">
+              Ingen treningsplan tilgjengeleg for dette fokusområdet.
+            </p>
+          `
+      }
+    </div>
+  `;
 
   return html;
 }
 
 function drawReportGraphs(data){
   data.clubs.forEach(c => {
-    drawMiniReportGraph(
-      `report-${c.club}-side`,
-      c.graphs.side,
-      c.baseline?.side,
-      "side"
-    );
 
-    drawMiniReportGraph(
-      `report-${c.club}-cons`,
-      c.graphs.cons,
-      c.baseline?.cons,
-      "cons"
-    );
+    const clubId = safeId(c.club);
 
-    drawMiniReportGraph(
-      `report-${c.club}-smash`,
-      c.graphs.smash,
-      c.baseline?.smash,
-      "smash"
-    );
+    [
+      { key: "side" },
+      { key: "cons" },
+      { key: "smash" }
+    ].forEach(({ key }) => {
+
+      const canvas = document.getElementById(`report-${clubId}-${key}`);
+      if(!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const series = (c.graphs[key] || []).filter(d => d.value != null);
+      if(series.length === 0) return;
+
+      const baseline = c.baseline?.[key];
+
+      const pad = 30;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const values = series.map(d => d.value);
+      if(baseline != null) values.push(baseline);
+
+      let min = Math.min(...values);
+      let max = Math.max(...values);
+      if(min === max){ min -= 1; max += 1; }
+
+      const xStep = (w - pad * 2) / (series.length - 1 || 1);
+      const yScale = (h - pad * 2) / (max - min);
+
+      // Baseline
+      if(baseline != null){
+        const yBase = h - pad - (baseline - min) * yScale;
+        ctx.setLineDash([4,4]);
+        ctx.strokeStyle = "#c62828";
+        ctx.beginPath();
+        ctx.moveTo(pad, yBase);
+        ctx.lineTo(w - pad, yBase);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Line
+      ctx.strokeStyle = "#1976d2";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      series.forEach((d,i)=>{
+        const x = pad + i * xStep;
+        const y = h - pad - (d.value - min) * yScale;
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      });
+
+      ctx.stroke();
+
+      // Points
+      ctx.fillStyle = "#1976d2";
+      series.forEach((d,i)=>{
+        const x = pad + i * xStep;
+        const y = h - pad - (d.value - min) * yScale;
+        ctx.beginPath();
+        ctx.arc(x,y,3,0,Math.PI*2);
+        ctx.fill();
+      });
+
+    });
   });
 }
 
@@ -1508,7 +2085,7 @@ function resetAllData(){
 
     <div style="margin-top:12px;">
       <button onclick="closeReportPreview()">Lukk</button>
-      <button onclick="printReport(selectedReportClubs)">📄 Lag PDF</button>
+      <button onclick="printReport()">📄 Lag PDF</button>
     </div>
   </div>
 </div>
@@ -1526,8 +2103,6 @@ function resetAllData(){
     </div>
   </div>
 </div>
-
-<div id="printRoot" style="display:none"></div>
 
 </body>
 </html>
