@@ -599,7 +599,10 @@ const COPY_V09 = {
     focusLabel: "🎯 Fokus",
     referenceLabel: "Referansenivå",
     trainingLabel: "🛠 Treningsforslag",
-    openDrill: focus => `👉 Opne øving for ${focus.toLowerCase()}`
+    openDrill: function(focus){
+      if(!focus) return "👉 Opne øving";
+      return "👉 Opne øving for " + focus.toLowerCase();
+    }
   }
 
 };
@@ -685,7 +688,6 @@ const wrap = document.getElementById("clubs");
 // =========================================================
 
 function render(){
-  alert("render startar");
   wrap.innerHTML = "";
   wrap.style.display = "block";
 
