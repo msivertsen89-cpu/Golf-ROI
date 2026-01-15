@@ -679,22 +679,23 @@ const wrap = document.getElementById("clubs");
 // =========================================================
 
 function render(){
-  wrap.innerHTML = "";
+  let html = "";
 
+  // 🔒 TOM STATE
   if(!active.length){
-    wrap.innerHTML = `<div class="card small">Vel køller for å starte.</div>`;
+    html = `<div class="card small">Vel køller for å starte.</div>`;
+    wrap.innerHTML = html;
     return;
   }
 
   const main = getMainScreenFocus();
 
-  // =====================
-  // 🧭 TRENINGS­MODUS
-  // =====================
-  wrap.innerHTML += `
+  /* =====================
+     🧭 TRENINGS­MODUS
+  ===================== */
+  html += `
     <div class="card small">
       <strong>Treningsmodus</strong><br>
-
       <span class="small">
         ${
           trainingMode === "outdoor"
@@ -717,12 +718,11 @@ function render(){
     </div>
   `;
 
-
   /* =====================
      🎯 HOVUDFOKUS
   ===================== */
-   if(main){
-    wrap.innerHTML += `
+  if(main){
+    html += `
       <div class="card">
         <h3>
           ${COPY_V09.mainFocus.title}: ${main.focus}
@@ -778,7 +778,6 @@ function render(){
     `;
   }
 
-
   /* =====================
      🏌️ KØLLEKORT
      (BERRE NÅR DETALJAR ER PÅ)
@@ -789,7 +788,7 @@ function render(){
       .forEach(c => {
         ensureClub(c);
 
-        wrap.innerHTML += `
+        html += `
           <div class="card">
             <div class="accordion-header" onclick="toggle('${c}')">
               ${c}
@@ -818,7 +817,6 @@ function render(){
                 }
               </div>
 
-
               <div style="margin-top:8px">
                 ${renderButtons(c)}
               </div>
@@ -828,37 +826,39 @@ function render(){
               <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
 
               <div id="graph-${c}" style="display:none; margin-top:8px">
-
-                <!-- PARAMETERVAL -->
                 <div class="small" style="margin-bottom:6px;">
                   Vis:
                   <select onchange="changeGraphParam('${c}', this.value)">
-                    <option value="side" ${state[c]._graphParam==="side"?"selected":""}>
-                      Presisjon
-                    </option>
-                    <option value="cons" ${state[c]._graphParam==="cons"?"selected":""}>
-                      Lengdekontroll
-                    </option>
-                    <option value="smash" ${state[c]._graphParam==="smash"?"selected":""}>
-                      Treff
-                    </option>
+                    <option value="side" ${state[c]._graphParam==="side"?"selected":""}>Presisjon</option>
+                    <option value="cons" ${state[c]._graphParam==="cons"?"selected":""}>Lengdekontroll</option>
+                    <option value="smash" ${state[c]._graphParam==="smash"?"selected":""}>Treff</option>
                   </select>
                 </div>
 
                 <canvas id="canvas-${c}" width="360" height="160"></canvas>
                 <div id="graphInsight-${c}" class="small"></div>
               </div>
-
             </div>
           </div>
         `;
+      });
+  }
 
+  // ✅ EINASTE DOM-OPPDATERING
+  wrap.innerHTML = html;
+  localStorage.setItem(STORAGE, JSON.stringify(state));
+
+  // 🔁 Render evaluering ETTER at DOM finst
+  if(detailsVisible){
+    ALL_CLUBS
+      .filter(c => active.includes(c))
+      .forEach(c => {
         renderClubEvaluation(c);
       });
   }
 
-  localStorage.setItem(STORAGE, JSON.stringify(state));
 }
+
 
 renderBagFocus();
 
@@ -1168,9 +1168,6 @@ function persistAndUpdate(c){
       updateGraph(c);
     }
   }
-
-  // 🧠 Oppdater analyse
-  renderClubEvaluation(c);
 }
 
 /* =====================
