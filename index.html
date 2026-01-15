@@ -205,11 +205,6 @@ canvas {
 
 /* ====== MOBIL FIX v2.9 ====== */
 @media (max-width: 768px) {
-
-  /* 🔒 KRITISK MOBILFIX v2.9 */
-  .overlay {
-    position: absolute !important;
-  }
   body {
     max-width: none;
     margin: 0;
@@ -220,14 +215,6 @@ canvas {
     width: 100%;
     box-sizing: border-box;
   }
-}
-
-/* 🔴 DEBUG MOBIL – TVING SYNLIG */
-#clubs {
-  display: block !important;
-  min-height: 200px;
-  overflow: visible;
-  background: rgba(255,0,0,0.05);
 }
 
 </style>
@@ -692,8 +679,7 @@ const wrap = document.getElementById("clubs");
 // =========================================================
 
 function render(){
-  let html = "";
-  wrap.innerHTML = `<div class="card">DEBUG: render startar</div>`;
+  wrap.innerHTML = "";
 
   if(!active.length){
     wrap.innerHTML = `<div class="card small">Vel køller for å starte.</div>`;
@@ -705,7 +691,7 @@ function render(){
   // =====================
   // 🧭 TRENINGS­MODUS
   // =====================
-  html += `
+  wrap.innerHTML += `
     <div class="card small">
       <strong>Treningsmodus</strong><br>
 
@@ -736,7 +722,7 @@ function render(){
      🎯 HOVUDFOKUS
   ===================== */
    if(main){
-    html += `
+    wrap.innerHTML += `
       <div class="card">
         <h3>
           ${COPY_V09.mainFocus.title}: ${main.focus}
@@ -792,6 +778,7 @@ function render(){
     `;
   }
 
+
   /* =====================
      🏌️ KØLLEKORT
      (BERRE NÅR DETALJAR ER PÅ)
@@ -802,7 +789,7 @@ function render(){
       .forEach(c => {
         ensureClub(c);
 
-        html += `
+        wrap.innerHTML += `
           <div class="card">
             <div class="accordion-header" onclick="toggle('${c}')">
               ${c}
@@ -866,18 +853,10 @@ function render(){
           </div>
         `;
 
-      });
-  }
-
-  // 🔁 Render evaluering ETTER at DOM er ferdig bygd
-  if(detailsVisible){
-    ALL_CLUBS
-      .filter(c => active.includes(c))
-      .forEach(c => {
         renderClubEvaluation(c);
       });
   }
-  wrap.innerHTML = html;
+
   localStorage.setItem(STORAGE, JSON.stringify(state));
 }
 
