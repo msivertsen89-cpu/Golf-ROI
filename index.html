@@ -593,9 +593,7 @@ const COPY_V09 = {
     focusLabel: "🎯 Fokus",
     referenceLabel: "Referansenivå",
     trainingLabel: "🛠 Treningsforslag",
-    openDrill: function (focus) {
-      return "👉 Opne øving for " + String(focus).toLowerCase();
-    }
+    openDrill: focus => `👉 Opne øving for ${focus.toLowerCase()}`
   }
 
 };
@@ -688,102 +686,53 @@ function render(){
     return;
   }
 
-  const main = getMainScreenFocus();
-
-  // =====================
-  // 🧭 TRENINGS­MODUS
-  // =====================
+  /* =====================
+     🧭 TRENINGS­MODUS
+  ===================== */
   wrap.innerHTML += `
     <div class="card small">
       <strong>Treningsmodus</strong><br>
-
       <span class="small">
-        ${
-          trainingMode === "outdoor"
-            ? "Utendørs: basert på eigne observasjonar – ikkje måledata."
-            : "Simulator: basert på tal frå TrackMan eller liknande."
+        ${trainingMode === "outdoor"
+          ? "Utendørs: basert på eigne observasjonar – ikkje måledata."
+          : "Simulator: basert på tal frå TrackMan eller liknande."
         }
       </span>
-
       <div style="margin-top:6px;">
-        <button onclick="setTrainingMode('simulator')"
-          ${trainingMode === "simulator" ? "disabled" : ""}>
-          🏠 Simulator
-        </button>
-
-        <button onclick="setTrainingMode('outdoor')"
-          ${trainingMode === "outdoor" ? "disabled" : ""}>
-          🌳 Utendørs
-        </button>
+        <button onclick="setTrainingMode('simulator')" ${trainingMode==="simulator"?"disabled":""}>🏠 Simulator</button>
+        <button onclick="setTrainingMode('outdoor')" ${trainingMode==="outdoor"?"disabled":""}>🌳 Utendørs</button>
       </div>
     </div>
   `;
 
-
   /* =====================
-     🎯 HOVUDFOKUS
+     🎯 HOVUDFOKUS (VALFRITT)
   ===================== */
-   if(main){
+  const main = getMainScreenFocus();
+  if(main){
     wrap.innerHTML += `
       <div class="card">
-        <h3>
-          ${COPY_V09.mainFocus.title}: ${main.focus}
-          <span class="small">
-            ${COPY_V09.mainFocus.levels[main.level]}
-          </span>
-        </h3>
-
-        <p class="small">
-          ${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}
-        </p>
-
-        <div class="small" style="margin-top:8px;">
-          <div style="margin-bottom:8px;">
-            <strong>${COPY_V09.mainFocus.trainLabel}</strong><br>
-            ${
-              main.prioritize.length
-                ? main.prioritize.join(", ")
-                : COPY_V09.mainFocus.emptyTrain
-            }
-          </div>
-
-          <div>
-            <strong>${COPY_V09.mainFocus.maintainLabel}</strong><br>
-            ${
-              main.avoid.length
-                ? main.avoid.join(", ")
-                : COPY_V09.mainFocus.emptyMaintain
-            }
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <button onclick="toggleDetails()">
-          ${
-            detailsVisible
-              ? COPY_V09.detailsToggle.hide
-              : COPY_V09.detailsToggle.show
-          }
-        </button>
-      </div>
-
-      <div class="card small">
-        <strong>${COPY_V09.reportCard.title}</strong><br>
-        ${COPY_V09.reportCard.description}
-        <div style="margin-top:6px;">
-          <button onclick="openReportClubModal()">
-            ${COPY_V09.reportCard.button}
-          </button>
-        </div>
+        <h3>🎯 Fokus no: ${main.focus}</h3>
+        <p class="small">${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}</p>
       </div>
     `;
   }
 
+  /* =====================
+     🔘 KONTROLLKNAPPAR
+     (ALDRI bak if(main))
+  ===================== */
+  wrap.innerHTML += `
+    <div class="card">
+      <button onclick="toggleDetails()">
+        ${detailsVisible ? "Skjul detaljar per kølle" : "Sjå detaljar per kølle"}
+      </button>
+      <button onclick="openReportClubModal()">📄 Lag rapport</button>
+    </div>
+  `;
 
   /* =====================
      🏌️ KØLLEKORT
-     (BERRE NÅR DETALJAR ER PÅ)
   ===================== */
   if(detailsVisible){
     ALL_CLUBS
@@ -797,64 +746,17 @@ function render(){
               ${c}
               <span id="icon-${c}">▶</span>
             </div>
-
             <div class="accordion-content" id="content-${c}">
-              <div class="field" style="max-width:260px; margin-bottom:6px;">
-                <label>Dato for økt</label>
-                <input type="date" id="date-${c}" value="${today()}">
-              </div>
-
               <div class="grid">
-                ${
-                  trainingMode === "outdoor"
-                    ? `
-                      ${outdoorField(c,"side","Presisjon")}
-                      ${outdoorField(c,"cons","Lengdekontroll")}
-                      ${outdoorField(c,"smash","Treff")}
-                    `
-                    : `
-                      ${field(c,"side","Side-consistency (m)")}
-                      ${field(c,"cons","Length consistency (m)")}
-                      ${field(c,"smash","Smash factor",0.01)}
-                    `
-                }
+                ${field(c,"side","Side-consistency (m)")}
+                ${field(c,"cons","Length consistency (m)")}
+                ${field(c,"smash","Smash factor",0.01)}
               </div>
-
-
-              <div style="margin-top:8px">
-                ${renderButtons(c)}
-              </div>
-
+              <div style="margin-top:8px">${renderButtons(c)}</div>
               <div id="eval-${c}"></div>
-
-              <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
-
-              <div id="graph-${c}" style="display:none; margin-top:8px">
-
-                <!-- PARAMETERVAL -->
-                <div class="small" style="margin-bottom:6px;">
-                  Vis:
-                  <select onchange="changeGraphParam('${c}', this.value)">
-                    <option value="side" ${state[c]._graphParam==="side"?"selected":""}>
-                      Presisjon
-                    </option>
-                    <option value="cons" ${state[c]._graphParam==="cons"?"selected":""}>
-                      Lengdekontroll
-                    </option>
-                    <option value="smash" ${state[c]._graphParam==="smash"?"selected":""}>
-                      Treff
-                    </option>
-                  </select>
-                </div>
-
-                <canvas id="canvas-${c}" width="360" height="160"></canvas>
-                <div id="graphInsight-${c}" class="small"></div>
-              </div>
-
             </div>
           </div>
         `;
-
         renderClubEvaluation(c);
       });
   }
