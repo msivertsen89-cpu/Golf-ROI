@@ -770,6 +770,29 @@ function render(){
 
             <div style="margin-top:8px">${renderButtons(c)}</div>
             <div id="eval-${c}"></div>
+
+                      ${
+            trainingMode === "simulator"
+              ? `
+                <button onclick="toggleGraph('${c}')">📊 Vis graf</button>
+
+                <div id="graph-${c}" style="display:none; margin-top:8px">
+                  <div class="small" style="margin-bottom:6px;">
+                    Vis:
+                    <select onchange="changeGraphParam('${c}', this.value)">
+                      <option value="side" ${state[c]._graphParam==="side"?"selected":""}>Presisjon</option>
+                      <option value="cons" ${state[c]._graphParam==="cons"?"selected":""}>Lengdekontroll</option>
+                      <option value="smash" ${state[c]._graphParam==="smash"?"selected":""}>Treff</option>
+                    </select>
+                  </div>
+
+                  <canvas id="canvas-${c}" width="360" height="160"></canvas>
+                  <div id="graphInsight-${c}" class="small"></div>
+                </div>
+              `
+              : ""
+          }
+
           </div>
         </div>
       `;
@@ -1261,7 +1284,8 @@ function drawGraph(c,param){
    UI HELPERS
 ===================== */
 
-let detailsVisible = window.innerWidth > 768;
+let detailsVisible = window.innerWidth <= 768;
+
 
 function setTrainingMode(mode){
   if(mode !== "simulator" && mode !== "outdoor") return;
