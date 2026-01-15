@@ -698,6 +698,21 @@ function render(){
 
   const main = getMainScreenFocus();
 
+  let focusTone = "";
+  try {
+    const toneKey = getPdfTone();
+    if (
+      COPY_V09 &&
+      COPY_V09.mainFocus &&
+      COPY_V09.mainFocus.toneByHcp &&
+      COPY_V09.mainFocus.toneByHcp[toneKey]
+    ) {
+      focusTone = COPY_V09.mainFocus.toneByHcp[toneKey];
+    }
+  } catch(e){
+    focusTone = "";
+  }
+
   // =====================
   // 🧭 TRENINGS­MODUS
   // =====================
@@ -742,7 +757,7 @@ function render(){
         </h3>
 
         <p class="small">
-          ${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}
+          ${focusTone}
         </p>
 
         <div class="small" style="margin-top:8px;">
