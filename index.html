@@ -205,11 +205,6 @@ canvas {
 
 /* ====== MOBIL FIX v2.9 ====== */
 @media (max-width: 768px) {
-
-  /* 🔒 KRITISK MOBILFIX v2.9 */
-  .overlay {
-    position: absolute !important;
-  }
   body {
     max-width: none;
     margin: 0;
@@ -598,7 +593,9 @@ const COPY_V09 = {
     focusLabel: "🎯 Fokus",
     referenceLabel: "Referansenivå",
     trainingLabel: "🛠 Treningsforslag",
-    openDrill: focus => `👉 Opne øving for ${focus.toLowerCase()}`
+    openDrill: function (focus) {
+      return "👉 Opne øving for " + String(focus).toLowerCase();
+    }
   }
 
 };
@@ -684,8 +681,7 @@ const wrap = document.getElementById("clubs");
 // =========================================================
 
 function render(){
-  let html = "";
-  wrap.innerHTML = `<div class="card">DEBUG: render startar</div>`;
+  wrap.innerHTML = "";
 
   if(!active.length){
     wrap.innerHTML = `<div class="card small">Vel køller for å starte.</div>`;
@@ -697,7 +693,7 @@ function render(){
   // =====================
   // 🧭 TRENINGS­MODUS
   // =====================
-  html += `
+  wrap.innerHTML += `
     <div class="card small">
       <strong>Treningsmodus</strong><br>
 
@@ -728,7 +724,7 @@ function render(){
      🎯 HOVUDFOKUS
   ===================== */
    if(main){
-    html += `
+    wrap.innerHTML += `
       <div class="card">
         <h3>
           ${COPY_V09.mainFocus.title}: ${main.focus}
@@ -784,6 +780,7 @@ function render(){
     `;
   }
 
+
   /* =====================
      🏌️ KØLLEKORT
      (BERRE NÅR DETALJAR ER PÅ)
@@ -794,7 +791,7 @@ function render(){
       .forEach(c => {
         ensureClub(c);
 
-        html += `
+        wrap.innerHTML += `
           <div class="card">
             <div class="accordion-header" onclick="toggle('${c}')">
               ${c}
@@ -858,34 +855,10 @@ function render(){
           </div>
         `;
 
-      });
-  }
-
-  // 🔁 Render evaluering ETTER at DOM er ferdig bygd
-  if(active.length){
-    ALL_CLUBS
-      .filter(c => active.includes(c))
-      .forEach(c => {
-        ensureClub(c);
-
-        wrap.innerHTML += `
-          <div class="card">
-            <div class="accordion-header" onclick="toggle('${c}')">
-              ${c}
-              <span id="icon-${c}">▶</span>
-            </div>
-
-            <div class="accordion-content" id="content-${c}">
-              ...
-            </div>
-          </div>
-        `;
-
         renderClubEvaluation(c);
       });
   }
 
-  wrap.innerHTML = html;
   localStorage.setItem(STORAGE, JSON.stringify(state));
 }
 
@@ -1363,17 +1336,7 @@ function setTrainingMode(mode){
 
 function toggleDetails(){
   detailsVisible = !detailsVisible;
-
-  ALL_CLUBS
-    .filter(c => active.includes(c))
-    .forEach(c => {
-      const content = document.getElementById("content-"+c);
-      const icon = document.getElementById("icon-"+c);
-      if(!content || !icon) return;
-
-      content.style.display = detailsVisible ? "block" : "none";
-      icon.textContent = detailsVisible ? "▼" : "▶";
-    });
+  render();
 }
 
 function toggle(c){
