@@ -647,6 +647,7 @@ let selectedSessionClub = null;
 let selectedSessionIndex = null;
 let selectedReportClubs = [];
 let trainingMode = "simulator"; // "simulator" | "outdoor"
+let outdoorLevel = {};
 
 
 /* =====================
@@ -686,6 +687,8 @@ function render(){
     return;
   }
 
+  const main = getMainScreenFocus();
+
   /* =====================
      🧭 TRENINGS­MODUS
   ===================== */
@@ -693,9 +696,10 @@ function render(){
     <div class="card small">
       <strong>Treningsmodus</strong><br>
       <span class="small">
-        ${trainingMode === "outdoor"
-          ? "Utendørs: basert på eigne observasjonar – ikkje måledata."
-          : "Simulator: basert på tal frå TrackMan eller liknande."
+        ${
+          trainingMode === "outdoor"
+            ? "Utendørs: basert på eigne observasjonar – ikkje måledata."
+            : "Simulator: basert på tal frå TrackMan eller liknande."
         }
       </span>
       <div style="margin-top:6px;">
@@ -706,70 +710,72 @@ function render(){
   `;
 
   /* =====================
-     🎯 HOVUDFOKUS (VALFRITT)
+     🎯 HOVUDFOKUS
   ===================== */
-  const main = getMainScreenFocus();
   if(main){
     wrap.innerHTML += `
       <div class="card">
-        <h3>🎯 Fokus no: ${main.focus}</h3>
+        <h3>
+          ${COPY_V09.mainFocus.title}: ${main.focus}
+          <span class="small">${COPY_V09.mainFocus.levels[main.level]}</span>
+        </h3>
         <p class="small">${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}</p>
+      </div>
+
+      <div class="card">
+        <button onclick="toggleDetails()">
+          ${detailsVisible ? COPY_V09.detailsToggle.hide : COPY_V09.detailsToggle.show}
+        </button>
+      </div>
+
+      <div class="card small">
+        <strong>${COPY_V09.reportCard.title}</strong><br>
+        ${COPY_V09.reportCard.description}
+        <div style="margin-top:6px;">
+          <button onclick="openReportClubModal()">${COPY_V09.reportCard.button}</button>
+        </div>
       </div>
     `;
   }
 
   /* =====================
-     🔘 KONTROLLKNAPPAR
-     (ALDRI bak if(main))
-  ===================== */
-  wrap.innerHTML += `
-    <div class="card">
-      <button onclick="toggleDetails()">
-        ${detailsVisible ? "Skjul detaljar per kølle" : "Sjå detaljar per kølle"}
-      </button>
-    </div>
-  `;
-
-  wrap.innerHTML += `
-    <div class="card small">
-      <strong>${COPY_V09.reportCard.title}</strong><br>
-      ${COPY_V09.reportCard.description}
-      <div style="margin-top:6px;">
-        <button onclick="openReportClubModal()">
-          ${COPY_V09.reportCard.button}
-        </button>
-      </div>
-    </div>
-  `;
-
-  /* =====================
      🏌️ KØLLEKORT
   ===================== */
   if(detailsVisible){
-    ALL_CLUBS
-      .filter(c => active.includes(c))
-      .forEach(c => {
-        ensureClub(c);
+    ALL_CLUBS.filter(c => active.includes(c)).forEach(c=>{
+      ensureClub(c);
 
-        wrap.innerHTML += `
-          <div class="card">
-            <div class="accordion-header" onclick="toggle('${c}')">
-              ${c}
-              <span id="icon-${c}">▶</span>
-            </div>
-            <div class="accordion-content" id="content-${c}">
-              <div class="grid">
-                ${field(c,"side","Side-consistency (m)")}
-                ${field(c,"cons","Length consistency (m)")}
-                ${field(c,"smash","Smash factor",0.01)}
-              </div>
-              <div style="margin-top:8px">${renderButtons(c)}</div>
-              <div id="eval-${c}"></div>
-            </div>
+      wrap.innerHTML += `
+        <div class="card">
+          <div class="accordion-header" onclick="toggle('${c}')">
+            ${c}<span id="icon-${c}">▶</span>
           </div>
-        `;
-        renderClubEvaluation(c);
-      });
+
+          <div class="accordion-content" id="content-${c}">
+            <div class="grid">
+              ${
+                trainingMode === "outdoor"
+                  ? `
+                    ${outdoorField(c,"side","Presisjon")}
+                    ${outdoorField(c,"cons","Lengdekontroll")}
+                    ${outdoorField(c,"smash","Treff")}
+                  `
+                  : `
+                    ${field(c,"side","Side-consistency (m)")}
+                    ${field(c,"cons","Length consistency (m)")}
+                    ${field(c,"smash","Smash factor",0.01)}
+                  `
+              }
+            </div>
+
+            <div style="margin-top:8px">${renderButtons(c)}</div>
+            <div id="eval-${c}"></div>
+          </div>
+        </div>
+      `;
+
+      renderClubEvaluation(c);
+    });
   }
 
   localStorage.setItem(STORAGE, JSON.stringify(state));
@@ -798,17 +804,29 @@ function field(c,k,label,step=1){
 }
 
 function outdoorField(c, param, label){
+  const key = c + "_" + param;
+  const selected = outdoorLevel[key];
+
+  function btn(level, emoji){
+    const active = selected === level
+      ? "style='outline:2px solid #000'"
+      : "";
+    return `<button ${active}
+      onclick="setOutdoor('${c}','${param}','${level}')">${emoji}</button>`;
+  }
+
   return `
     <div class="field">
       <label>${label}</label>
       <div style="display:flex; gap:6px; margin-top:4px;">
-        <button onclick="setOutdoor('${c}','${param}','bad')">🔴</button>
-        <button onclick="setOutdoor('${c}','${param}','ok')">🟠</button>
-        <button onclick="setOutdoor('${c}','${param}','good')">🟢</button>
+        ${btn("bad","🔴")}
+        ${btn("ok","🟠")}
+        ${btn("good","🟢")}
       </div>
     </div>
   `;
 }
+
 
 function evaluateClub(c){
   const club = state[c];
@@ -1015,6 +1033,10 @@ function updateValue(c,k,v){
 function setOutdoor(c, param, level){
   const value = mapOutdoorInput(level, clubType(c), param);
   state[c].current[param] = value;
+
+  outdoorLevel[c + "_" + param] = level;
+
+  render();
 }
 
 function setBaseline(c){
@@ -1239,7 +1261,7 @@ function drawGraph(c,param){
    UI HELPERS
 ===================== */
 
-let detailsVisible = false;
+let detailsVisible = window.innerWidth > 768;
 
 function setTrainingMode(mode){
   if(mode !== "simulator" && mode !== "outdoor") return;
