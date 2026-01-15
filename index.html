@@ -5,7 +5,7 @@
 <title>Golf ROI – Treningsanalyse</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<style id="v29-mobile-fix">
+<style>
 body {
   font-family: Arial, sans-serif;
   background:#f4f6f8;
@@ -217,7 +217,7 @@ canvas {
   }
 }
 
-/* ====== MOBILE RENDER FIX – v2.9 ====== */
+/* ====== MOBIL RENDER FIX – v2.9 ====== */
 #clubs {
   display: block;
   min-height: 1px;
@@ -599,10 +599,7 @@ const COPY_V09 = {
     focusLabel: "🎯 Fokus",
     referenceLabel: "Referansenivå",
     trainingLabel: "🛠 Treningsforslag",
-    openDrill: function(focus){
-      if(!focus) return "👉 Opne øving";
-      return "👉 Opne øving for " + focus.toLowerCase();
-    }
+    openDrill: focus => `👉 Opne øving for ${focus.toLowerCase()}`
   }
 
 };
@@ -689,7 +686,6 @@ const wrap = document.getElementById("clubs");
 
 function render(){
   wrap.innerHTML = "";
-  wrap.style.display = "block";
 
   if(!active.length){
     wrap.innerHTML = `<div class="card small">Vel køller for å starte.</div>`;
@@ -697,21 +693,6 @@ function render(){
   }
 
   const main = getMainScreenFocus();
-
-  let focusTone = "";
-  try {
-    const toneKey = getPdfTone();
-    if (
-      COPY_V09 &&
-      COPY_V09.mainFocus &&
-      COPY_V09.mainFocus.toneByHcp &&
-      COPY_V09.mainFocus.toneByHcp[toneKey]
-    ) {
-      focusTone = COPY_V09.mainFocus.toneByHcp[toneKey];
-    }
-  } catch(e){
-    focusTone = "";
-  }
 
   // =====================
   // 🧭 TRENINGS­MODUS
@@ -752,72 +733,30 @@ function render(){
         <h3>
           ${COPY_V09.mainFocus.title}: ${main.focus}
           <span class="small">
-            ${focusLevelLabel}
+            ${COPY_V09.mainFocus.levels[main.level]}
           </span>
         </h3>
 
         <p class="small">
-          ${focusTone}
+          ${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}
         </p>
-
-        let focusLevelLabel = "";
-        try {
-          if (
-            COPY_V09 &&
-            COPY_V09.mainFocus &&
-            COPY_V09.mainFocus.levels &&
-            main &&
-            main.level &&
-            COPY_V09.mainFocus.levels[main.level]
-          ) {
-            focusLevelLabel = COPY_V09.mainFocus.levels[main.level];
-          }
-        } catch(e){
-          focusLevelLabel = "";
-        }
-
-        let trainLabel = "";
-        let maintainLabel = "";
-
-        try {
-          if (COPY_V09 && COPY_V09.mainFocus) {
-            trainLabel = COPY_V09.mainFocus.trainLabel || "";
-            maintainLabel = COPY_V09.mainFocus.maintainLabel || "";
-          }
-        } catch(e){
-          trainLabel = "";
-          maintainLabel = "";
-        }
-
-        let emptyTrainText = "";
-        let emptyMaintainText = "";
-
-        try {
-          if (COPY_V09 && COPY_V09.mainFocus) {
-            emptyTrainText = COPY_V09.mainFocus.emptyTrain || "";
-            emptyMaintainText = COPY_V09.mainFocus.emptyMaintain || "";
-          }
-        } catch(e){
-          emptyTrainText = "";
-          emptyMaintainText = "";
-        }
 
         <div class="small" style="margin-top:8px;">
           <div style="margin-bottom:8px;">
-            <strong>${trainLabel}</strong><br>
+            <strong>${COPY_V09.mainFocus.trainLabel}</strong><br>
             ${
               main.prioritize.length
                 ? main.prioritize.join(", ")
-                : emptyTrainText
+                : COPY_V09.mainFocus.emptyTrain
             }
           </div>
 
           <div>
-            <strong>${maintainLabel}</strong><br>
+            <strong>${COPY_V09.mainFocus.maintainLabel}</strong><br>
             ${
               main.avoid.length
                 ? main.avoid.join(", ")
-                : emptyMaintainText
+                : COPY_V09.mainFocus.emptyMaintain
             }
           </div>
         </div>
