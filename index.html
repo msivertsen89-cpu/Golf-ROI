@@ -779,7 +779,6 @@ function render(){
     `;
   }
 
-
   /* =====================
      🏌️ KØLLEKORT
      (BERRE NÅR DETALJAR ER PÅ)
@@ -854,6 +853,14 @@ function render(){
           </div>
         `;
 
+      });
+  }
+
+  // 🔁 Render evaluering ETTER at DOM er ferdig bygd
+  if(detailsVisible){
+    ALL_CLUBS
+      .filter(c => active.includes(c))
+      .forEach(c => {
         renderClubEvaluation(c);
       });
   }
