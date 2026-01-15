@@ -727,7 +727,18 @@ function render(){
       <button onclick="toggleDetails()">
         ${detailsVisible ? "Skjul detaljar per kølle" : "Sjå detaljar per kølle"}
       </button>
-      <button onclick="openReportClubModal()">📄 Lag rapport</button>
+    </div>
+  `;
+
+  wrap.innerHTML += `
+    <div class="card small">
+      <strong>${COPY_V09.reportCard.title}</strong><br>
+      ${COPY_V09.reportCard.description}
+      <div style="margin-top:6px;">
+        <button onclick="openReportClubModal()">
+          ${COPY_V09.reportCard.button}
+        </button>
+      </div>
     </div>
   `;
 
