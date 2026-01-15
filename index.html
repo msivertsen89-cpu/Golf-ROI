@@ -752,7 +752,7 @@ function render(){
         <h3>
           ${COPY_V09.mainFocus.title}: ${main.focus}
           <span class="small">
-            ${COPY_V09.mainFocus.levels[main.level]}
+            ${focusLevelLabel}
           </span>
         </h3>
 
@@ -760,22 +760,64 @@ function render(){
           ${focusTone}
         </p>
 
+        let focusLevelLabel = "";
+        try {
+          if (
+            COPY_V09 &&
+            COPY_V09.mainFocus &&
+            COPY_V09.mainFocus.levels &&
+            main &&
+            main.level &&
+            COPY_V09.mainFocus.levels[main.level]
+          ) {
+            focusLevelLabel = COPY_V09.mainFocus.levels[main.level];
+          }
+        } catch(e){
+          focusLevelLabel = "";
+        }
+
+        let trainLabel = "";
+        let maintainLabel = "";
+
+        try {
+          if (COPY_V09 && COPY_V09.mainFocus) {
+            trainLabel = COPY_V09.mainFocus.trainLabel || "";
+            maintainLabel = COPY_V09.mainFocus.maintainLabel || "";
+          }
+        } catch(e){
+          trainLabel = "";
+          maintainLabel = "";
+        }
+
+        let emptyTrainText = "";
+        let emptyMaintainText = "";
+
+        try {
+          if (COPY_V09 && COPY_V09.mainFocus) {
+            emptyTrainText = COPY_V09.mainFocus.emptyTrain || "";
+            emptyMaintainText = COPY_V09.mainFocus.emptyMaintain || "";
+          }
+        } catch(e){
+          emptyTrainText = "";
+          emptyMaintainText = "";
+        }
+
         <div class="small" style="margin-top:8px;">
           <div style="margin-bottom:8px;">
-            <strong>${COPY_V09.mainFocus.trainLabel}</strong><br>
+            <strong>${trainLabel}</strong><br>
             ${
               main.prioritize.length
                 ? main.prioritize.join(", ")
-                : COPY_V09.mainFocus.emptyTrain
+                : emptyTrainText
             }
           </div>
 
           <div>
-            <strong>${COPY_V09.mainFocus.maintainLabel}</strong><br>
+            <strong>${maintainLabel}</strong><br>
             ${
               main.avoid.length
                 ? main.avoid.join(", ")
-                : COPY_V09.mainFocus.emptyMaintain
+                : emptyMaintainText
             }
           </div>
         </div>
