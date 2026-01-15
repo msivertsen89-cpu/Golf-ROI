@@ -687,7 +687,7 @@ const wrap = document.getElementById("clubs");
 // =========================================================
 
 function render(){
-  wrap.innerHTML = "";
+  let html = "";
   wrap.innerHTML = `<div class="card">DEBUG: render startar</div>`;
 
   if(!active.length){
@@ -700,7 +700,7 @@ function render(){
   // =====================
   // 🧭 TRENINGS­MODUS
   // =====================
-  wrap.innerHTML += `
+  html += `
     <div class="card small">
       <strong>Treningsmodus</strong><br>
 
@@ -731,7 +731,7 @@ function render(){
      🎯 HOVUDFOKUS
   ===================== */
    if(main){
-    wrap.innerHTML += `
+    html += `
       <div class="card">
         <h3>
           ${COPY_V09.mainFocus.title}: ${main.focus}
@@ -797,7 +797,7 @@ function render(){
       .forEach(c => {
         ensureClub(c);
 
-        wrap.innerHTML += `
+        html += `
           <div class="card">
             <div class="accordion-header" onclick="toggle('${c}')">
               ${c}
@@ -872,7 +872,7 @@ function render(){
         renderClubEvaluation(c);
       });
   }
-
+  wrap.innerHTML = html;
   localStorage.setItem(STORAGE, JSON.stringify(state));
 }
 
