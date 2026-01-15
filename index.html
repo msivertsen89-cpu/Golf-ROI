@@ -217,6 +217,12 @@ canvas {
   }
 }
 
+/* ====== MOBILE RENDER FIX – v2.9 ====== */
+#clubs {
+  display: block;
+  min-height: 1px;
+}
+
 </style>
 </head>
 
@@ -680,6 +686,7 @@ const wrap = document.getElementById("clubs");
 
 function render(){
   wrap.innerHTML = "";
+  wrap.style.display = "block";
 
   if(!active.length){
     wrap.innerHTML = `<div class="card small">Vel køller for å starte.</div>`;
