@@ -750,6 +750,15 @@ wrap.innerHTML += `
           </div>
 
           <div class="accordion-content" id="content-${c}">
+            <div class="field" style="max-width:260px; margin-bottom:6px;">
+              <label>Dato for økt</label>
+              <input
+                type="date"
+                id="date-${c}"
+                value="${today()}"
+              >
+            </div>
+
             <div class="grid">
               ${
                 trainingMode === "outdoor"
@@ -1057,7 +1066,7 @@ function setOutdoor(c, param, level){
 
   outdoorLevel[c + "_" + param] = level;
 
-  render();
+  persistAndUpdate(c);  // ✅ riktig måte
 }
 
 function setBaseline(c){
