@@ -241,6 +241,7 @@ canvas {
   <div class="modal">
     <h3>🚀 Kom i gang</h3>
     <ol>
+      <li>Vel profil</li>
       <li>Vel køller</li>
       <li>Legg inn baseline</li>
       <li>Legg til økter</li>
@@ -710,33 +711,30 @@ function render(){
   `;
 
   /* =====================
-     🎯 HOVUDFOKUS
-  ===================== */
-  if(main){
-    wrap.innerHTML += `
-      <div class="card">
-        <h3>
-          ${COPY_V09.mainFocus.title}: ${main.focus}
-          <span class="small">${COPY_V09.mainFocus.levels[main.level]}</span>
-        </h3>
-        <p class="small">${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}</p>
-      </div>
+   🔘 KONTROLLAR
+===================== */
+wrap.innerHTML += `
+  <div class="card">
+    <button onclick="toggleDetails()">
+      ${
+        detailsVisible
+          ? COPY_V09.detailsToggle.hide
+          : COPY_V09.detailsToggle.show
+      }
+    </button>
+  </div>
 
-      <div class="card">
-        <button onclick="toggleDetails()">
-          ${detailsVisible ? COPY_V09.detailsToggle.hide : COPY_V09.detailsToggle.show}
-        </button>
-      </div>
+  <div class="card small">
+    <strong>${COPY_V09.reportCard.title}</strong><br>
+    ${COPY_V09.reportCard.description}
+    <div style="margin-top:6px;">
+      <button onclick="openReportClubModal()">
+        ${COPY_V09.reportCard.button}
+      </button>
+    </div>
+  </div>
+`;
 
-      <div class="card small">
-        <strong>${COPY_V09.reportCard.title}</strong><br>
-        ${COPY_V09.reportCard.description}
-        <div style="margin-top:6px;">
-          <button onclick="openReportClubModal()">${COPY_V09.reportCard.button}</button>
-        </div>
-      </div>
-    `;
-  }
 
   /* =====================
      🏌️ KØLLEKORT
