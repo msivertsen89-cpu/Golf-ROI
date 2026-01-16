@@ -691,7 +691,7 @@ function render(){
   const main = getMainScreenFocus();
 
   /* =====================
-     🧭 TRENINGS­MODUS
+     🧭 TRENINGSMODUS
   ===================== */
   wrap.innerHTML += `
     <div class="card small">
@@ -709,6 +709,47 @@ function render(){
       </div>
     </div>
   `;
+
+  /* =====================
+     🎯 HOVUDFOKUS
+  ===================== */
+  if(main){
+    wrap.innerHTML += `
+      <div class="card">
+        <h3>
+          ${COPY_V09.mainFocus.title}: ${main.focus}
+          <span class="small">
+            ${COPY_V09.mainFocus.levels[main.level]}
+          </span>
+        </h3>
+
+        <p class="small">
+          ${COPY_V09.mainFocus.toneByHcp[getPdfTone()] || ""}
+        </p>
+
+        <div class="small" style="margin-top:8px;">
+          <div style="margin-bottom:8px;">
+            <strong>${COPY_V09.mainFocus.trainLabel}</strong><br>
+            ${
+              main.prioritize.length
+                ? main.prioritize.join(", ")
+                : COPY_V09.mainFocus.emptyTrain
+            }
+          </div>
+
+          <div>
+            <strong>${COPY_V09.mainFocus.maintainLabel}</strong><br>
+            ${
+              main.avoid.length
+                ? main.avoid.join(", ")
+                : COPY_V09.mainFocus.emptyMaintain
+            }
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
 
   /* =====================
    🔘 KONTROLLAR
@@ -832,6 +873,7 @@ function field(c,k,label,step=1){
     </div>
   `;
 }
+
 
 function outdoorField(c, param, label){
   const key = c + "_" + param;
